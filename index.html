@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"> 
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -89,7 +89,7 @@ body{
   opacity:0; pointer-events:none; transition:opacity .35s;
 }
 #record.on{opacity:1; pointer-events:auto}
-#record img{display:block} 
+#record img{display:block}
 
 .data{
   font-family:var(--mono); font-size:12px; line-height:2;
@@ -113,6 +113,23 @@ body{
   font-family:var(--mono); font-size:10px; letter-spacing:.16em; color:var(--grey);
 }
 #close:hover{color:var(--ink)}
+
+.botbar .right{display:flex; align-items:baseline; gap:18px}
+#sound{
+  pointer-events:auto;
+  font:inherit; letter-spacing:.16em; color:var(--grey);
+  background:none; border:0; padding:2px 0; cursor:pointer;
+  display:inline-flex; align-items:center; gap:7px;
+}
+#sound:hover{color:var(--ink)}
+#sound:focus-visible{outline:1px solid var(--ink); outline-offset:3px}
+#sound i{
+  width:6px; height:6px; border-radius:50%;
+  border:1px solid currentColor; background:transparent;
+  transition:background .25s;
+}
+#sound[aria-pressed="true"]{color:var(--ink)}
+#sound[aria-pressed="true"] i{background:currentColor}
 
 @media (prefers-reduced-motion:reduce){ #record,#boot{transition:none} }
 </style>
@@ -141,7 +158,10 @@ body{
 
   <div class="botbar">
     <span>211 BAY 35TH STREET, BROOKLYN &nbsp;—&nbsp; 40 FEET</span>
-    <span id="hint">DRAG SIDEWAYS · HOVER TO LOOK</span>
+    <span class="right">
+      <span id="hint">DRAG SIDEWAYS · HOVER TO LOOK</span>
+      <button id="sound" aria-pressed="false">SOUND <i></i></button>
+    </span>
   </div>
 
 </div>
@@ -354,6 +374,163 @@ function closeRecord(){
 document.getElementById("prev").onclick  = ()=>openRecord((openIdx + N - 1) % N);
 document.getElementById("next").onclick  = ()=>openRecord((openIdx + 1) % N);
 document.getElementById("close").onclick = closeRecord;
+
+
+/* ------------------------------------------------------ the block, heard
+   Nothing is sampled. A low bed of traffic, footsteps that come near and go
+   away again, and the occasional car at the end of the street — all synthesised,
+   so the page carries no audio files. */
+const Ambient = (function(){
+  let ctx = null, master = null, noise = null, running = false;
+  const timers = [];
+
+  function makeNoise(seconds){
+    const n = Math.floor(ctx.sampleRate * seconds);
+    const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for(let i=0;i<n;i++){                       // brown-ish: warmer than white
+      const w = Math.random()*2 - 1;
+      last = (last + 0.02*w) / 1.02;
+      d[i] = last * 3.2;
+    }
+    return buf;
+  }
+
+  function bed(){                                // distant traffic, always there
+    const src = ctx.createBufferSource();
+    src.buffer = noise; src.loop = true;
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = 300; lp.Q.value = 0.6;
+    const g = ctx.createGain(); g.gain.value = 0.16;
+    src.connect(lp).connect(g).connect(master);
+    src.start();
+
+    // the hum breathes rather than sits still
+    const lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+    lfo.frequency.value = 0.045; lfoG.gain.value = 90;
+    lfo.connect(lfoG).connect(lp.frequency);
+    lfo.start();
+  }
+
+  function step(when, gain, pan){
+    const pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    if(pn) pn.pan.value = pan;
+    const out = pn || ctx.createGain();
+    out.connect(master);
+
+    // the scuff: a short band of noise
+    const src = ctx.createBufferSource();
+    src.buffer = noise; src.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1500 + Math.random()*900;
+    bp.Q.value = 0.9 + Math.random()*0.6;
+    const g1 = ctx.createGain();
+    g1.gain.setValueAtTime(0, when);
+    g1.gain.linearRampToValueAtTime(gain * 0.5, when + 0.004);
+    g1.gain.exponentialRampToValueAtTime(0.0001, when + 0.075 + Math.random()*0.03);
+    src.connect(bp).connect(g1).connect(out);
+    src.start(when); src.stop(when + 0.2);
+
+    // the weight: a short low thump under it
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(96 + Math.random()*28, when);
+    osc.frequency.exponentialRampToValueAtTime(52, when + 0.09);
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0, when);
+    g2.gain.linearRampToValueAtTime(gain * 0.42, when + 0.006);
+    g2.gain.exponentialRampToValueAtTime(0.0001, when + 0.11);
+    osc.connect(g2).connect(out);
+    osc.start(when); osc.stop(when + 0.25);
+  }
+
+  /* someone walks past: near, then further, then gone, then someone else */
+  let prox = 0.3, pan = 0, pace = 0.52, leftFoot = true;
+  function walk(){
+    if(!running) return;
+    const t = ctx.currentTime + 0.03;
+    const gain = 0.05 + 0.5 * prox * prox;
+    step(t, gain * (leftFoot ? 1 : 0.88), pan + (leftFoot ? -0.07 : 0.07));
+    leftFoot = !leftFoot;
+
+    prox = Math.max(0.02, Math.min(1, prox + (Math.random()-0.5)*0.12));
+    pan  = Math.max(-0.8, Math.min(0.8, pan + (Math.random()-0.5)*0.1));
+
+    let wait = pace * (0.93 + Math.random()*0.14);
+    if(Math.random() < 0.05){            // they are gone; the street is empty a while
+      wait += 2.5 + Math.random()*5;
+      prox = 0.05 + Math.random()*0.25;
+      pan  = (Math.random()*2 - 1) * 0.7;
+      pace = 0.46 + Math.random()*0.16;
+    }
+    timers.push(setTimeout(walk, wait*1000));
+  }
+
+  function car(){                        // one passing at the end of the block
+    if(!running) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = noise; src.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass"; bp.Q.value = 0.7;
+    bp.frequency.setValueAtTime(190, t);
+    bp.frequency.linearRampToValueAtTime(620, t + 2.2);
+    bp.frequency.linearRampToValueAtTime(170, t + 5.0);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.10, t + 2.0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 5.2);
+    src.connect(bp).connect(g).connect(master);
+    src.start(t); src.stop(t + 5.4);
+    timers.push(setTimeout(car, (11 + Math.random()*22) * 1000));
+  }
+
+  function start(){
+    if(!ctx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return false;
+      ctx = new AC();
+      noise = makeNoise(3);
+      master = ctx.createGain();
+      master.gain.value = 0;
+      master.connect(ctx.destination);
+      bed();
+    }
+    if(ctx.state === "suspended") ctx.resume();
+    running = true;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+    master.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 2.2);   // fades up
+    walk();
+    timers.push(setTimeout(car, 4000));
+    return true;
+  }
+
+  function stop(){
+    running = false;
+    while(timers.length) clearTimeout(timers.pop());
+    if(!ctx) return;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+    master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.8);
+  }
+
+  return { toggle(){ if(running){ stop(); return false; } return start(); } };
+})();
+
+const soundBtn = document.getElementById("sound");
+soundBtn.addEventListener("click", ()=>{
+  const on = Ambient.toggle();
+  soundBtn.setAttribute("aria-pressed", on ? "true" : "false");
+});
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden && soundBtn.getAttribute("aria-pressed") === "true"){
+    Ambient.toggle();
+    soundBtn.setAttribute("aria-pressed", "false");
+  }
+});
 
 /* -------------------------------------------------------------------- loop */
 let last = 0, ready = false;
