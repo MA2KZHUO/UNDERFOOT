@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root{ color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body{ margin:0; font:14px/1.5 system-ui, sans-serif; background:#F6F4EF; }
+  img{ max-width:100%; }
+  [hidden]{ display:none !important; }
+</style>
+<title>Underfoot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap">
+
+<style>
+/* Layout: at rest the nine relief prints sit at their spacing along the block —
+   small, flat, nothing happening. Hover one and it fills the screen while the
+   others fall back to ghosts. Click it for the record. */
+:root{
+  --paper:#F6F4EF;
+  --ink:#131211;
+  --rule:#DCD8D0;
+  --soft:#5E5A53;
+  --grey:#A8A29A;
+  --sans:'Public Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:'Space Mono','Courier New',ui-monospace,monospace;
+  color-scheme: light;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--sans); overflow:hidden;
+  -webkit-user-select:none; user-select:none;
+}
+
+.frame{position:fixed; inset:0; display:flex; flex-direction:column}
+
+.topbar,.botbar{
+  flex:0 0 auto;
+  padding-inline:clamp(16px,4vw,48px);
+  font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--grey);
+  display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+  position:relative; z-index:20; pointer-events:none;
+}
+.topbar{padding-block:clamp(14px,3vh,26px) 0}
+.botbar{padding-block:0 clamp(14px,3vh,26px)}
+.topbar b{color:var(--ink); font-weight:700}
+
+.stage{flex:1 1 auto; position:relative; min-height:0; overflow:hidden}
+
+#strip{position:absolute; inset:0; cursor:grab; touch-action:pan-y}
+#strip.drag{cursor:grabbing}
+#strip.gone{opacity:0; pointer-events:none; transition:opacity .4s}
+
+.lid{
+  position:absolute; left:50%; top:50%;
+  border:0; padding:0; margin:0; background:none;
+  transform-origin:center center; will-change:transform,opacity;
+  line-height:0; cursor:pointer;
+}
+.lid img{display:block; width:100%; height:100%; pointer-events:none}
+.lid:focus-visible{outline:2px solid var(--ink); outline-offset:10px}
+
+#focusTag{
+  position:absolute; left:50%; transform:translateX(-50%);
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  color:var(--grey); white-space:nowrap; text-align:center;
+  pointer-events:none; z-index:12; line-height:1.7; opacity:0;
+}
+#focusTag em{font-style:normal; color:var(--ink)}
+
+#boot{
+  position:absolute; inset:0; display:grid; place-items:center;
+  font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--grey);
+  transition:opacity .4s;
+}
+#boot.gone{opacity:0; pointer-events:none}
+
+#record{
+  position:absolute; inset:0; z-index:30;
+  display:grid; place-items:center; gap:clamp(16px,3vh,28px);
+  padding:clamp(16px,4vw,40px);
+  background:var(--paper);
+  opacity:0; pointer-events:none; transition:opacity .35s;
+}
+#record.on{opacity:1; pointer-events:auto}
+#record img{display:block}
+
+.data{
+  font-family:var(--mono); font-size:12px; line-height:2;
+  margin:0; display:grid; grid-template-columns:auto auto; gap:0 18px;
+}
+.data dt{color:var(--grey); letter-spacing:.08em}
+.data dd{margin:0; font-variant-numeric:tabular-nums; text-align:right}
+
+.nav{
+  position:absolute; top:50%; transform:translateY(-50%);
+  background:none; border:0; cursor:pointer; padding:16px 14px;
+  font-family:var(--mono); font-size:16px; color:var(--grey);
+}
+.nav:hover{color:var(--ink)}
+.nav:focus-visible{outline:2px solid var(--ink)}
+#prev{left:clamp(4px,2vw,24px)} #next{right:clamp(4px,2vw,24px)}
+
+#close{
+  position:absolute; top:clamp(12px,3vh,26px); right:clamp(16px,4vw,48px);
+  background:none; border:0; cursor:pointer; padding:6px 2px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.16em; color:var(--grey);
+}
+#close:hover{color:var(--ink)}
+
+@media (prefers-reduced-motion:reduce){ #record,#boot{transition:none} }
+</style>
+
+</head>
+<body>
+<div class="frame">
+
+  <div class="topbar">
+    <span><b>UNDERFOOT</b> &nbsp;NINE CAST-IRON CURB BOXES</span>
+    <span>RELIEF PRINTS, 2026</span>
+  </div>
+
+  <div class="stage">
+    <div id="strip"><div id="focusTag"></div></div>
+    <div id="boot">LOADING THE PRINTS</div>
+
+    <div id="record">
+      <img id="big" alt="">
+      <dl class="data" id="data"></dl>
+      <button class="nav" id="prev" aria-label="Previous specimen">&#8592;</button>
+      <button class="nav" id="next" aria-label="Next specimen">&#8594;</button>
+      <button id="close">CLOSE &#215;</button>
+    </div>
+  </div>
+
+  <div class="botbar">
+    <span>211 BAY 35TH STREET, BROOKLYN &nbsp;—&nbsp; 40 FEET</span>
+    <span id="hint">DRAG SIDEWAYS · HOVER TO LOOK</span>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const LIDS = [
+  {n:"01", src:"lid01.png", word:"MONITORING WELL", sub:"NOT TO FILL", ft: 0.0},
+  {n:"02", src:"lid02.png", word:"WATER",           sub:"—",           ft: 3.5},
+  {n:"03", src:"lid03.png", word:"GAS",             sub:"—",           ft: 9.0},
+  {n:"04", src:"lid04.png", word:"C.A.S.",          sub:"USA",         ft:12.0},
+  {n:"05", src:"lid05.png", word:"GAS",             sub:"—",           ft:17.0},
+  {n:"06", src:"lid06.png", word:"VALVCO G.S.",     sub:"VENTI-BOX",   ft:21.5},
+  {n:"07", src:"lid07.png", word:"G.S.",            sub:"—",           ft:28.0},
+  {n:"08", src:"lid08.png", word:"WATER",           sub:"—",           ft:31.0},
+  {n:"09", src:"lid09.png", word:"VENTI-BOX",       sub:"PATENT",      ft:38.0}
+];
+const N = LIDS.length, SPAN = 40;
+
+/* --------------------------------------------------------------- the strip */
+const strip = document.getElementById("strip");
+const tagEl = document.getElementById("focusTag");
+const nodes = [];
+
+let BIG = 420, STEP = 140, REST = 70;
+let pos = 0, target = 0, k = 0, kWant = 0, hovered = -1;
+let dragging = false, startX = 0, startPos = 0, moved = 0;
+const GHOST = 0.155;
+
+/* engaging from rest is quick; swapping to another lid has to be deliberate */
+const DWELL_IN = 70, DWELL_SWAP = 170, GRACE = 150;
+let over = -1, enterT = null, leaveT = null;
+function release(){
+  over = -1;
+  clearTimeout(enterT); clearTimeout(leaveT);
+  leaveT = setTimeout(()=>{ if(over < 0){ hovered = -1; kWant = 0; } }, GRACE);
+}
+
+for(let i=0;i<N;i++){
+  const b = document.createElement("button");
+  b.className = "lid";
+  b.setAttribute("aria-label", "Specimen " + LIDS[i].n + ", " + LIDS[i].word);
+  const im = new Image();
+  im.alt = "";
+  im.src = LIDS[i].src;
+  b.appendChild(im);
+  strip.appendChild(b);
+  nodes.push(b);
+
+  b.addEventListener("pointerenter", ()=>{
+    if(dragging || openIdx >= 0) return;
+    over = i;
+    clearTimeout(leaveT);
+    if(hovered === i) return;
+    clearTimeout(enterT);
+    const wait = (hovered >= 0 && k > 0.4) ? DWELL_SWAP : DWELL_IN;
+    enterT = setTimeout(()=>{            // settle on it; sweeping past does nothing
+      if(over === i && !dragging && openIdx < 0){ hovered = i; kWant = 1; target = i; }
+    }, wait);
+  });
+  b.addEventListener("pointerleave", ()=>{ if(over === i) release(); });
+  b.addEventListener("focus", ()=>{ if(openIdx < 0){ hovered = i; kWant = 1; target = i; } });
+  b.addEventListener("blur",  ()=>{ if(hovered === i){ over = -1; hovered = -1; kWant = 0; } });
+  b.addEventListener("click", ()=>{
+    if(moved > 6) return;
+    if(k > 0.6 && Math.abs(pos - i) < 0.35) openRecord(i);
+    else { hovered = i; kWant = 1; target = i; }
+  });
+}
+strip.addEventListener("pointerleave", release);
+
+function restX(i){ return (i - pos) * STEP; }   /* at rest: evenly spaced */
+function hotX(u){
+  const A = BIG * 0.56, B = BIG * 0.155;
+  const d = Math.abs(u), s = u < 0 ? -1 : 1;
+  return d <= 1 ? u * A : s * (A + (d - 1) * B);
+}
+function hotScale(d){
+  return d <= 1 ? GHOST + (1 - GHOST) * Math.pow(1 - d, 1.5) : GHOST * Math.pow(0.86, d - 1);
+}
+function hotAlpha(d){
+  return d <= 1 ? 0.42 + 0.58 * (1 - d) : Math.max(0.10, 0.42 * Math.pow(0.78, d - 1));
+}
+
+function sizeStrip(){
+  const w = strip.clientWidth, h = strip.clientHeight;
+  if(!w || !h) return;
+  BIG  = Math.max(150, Math.min(w * 0.58, h * 0.80));
+  STEP = Math.min((w * 0.88) / (N - 1), BIG * 0.34);
+  REST = Math.max(34, Math.min(BIG * 0.26, STEP * 0.82, h * 0.32));
+  nodes.forEach(b=>{
+    b.style.width  = BIG + "px";
+    b.style.height = BIG + "px";
+    b.style.marginLeft = (-BIG/2) + "px";
+    b.style.marginTop  = (-BIG/2) + "px";
+  });
+}
+
+function place(){
+  const restScale = REST / BIG;
+  for(let i=0;i<N;i++){
+    const u = i - pos, d = Math.abs(u), b = nodes[i];
+    const rx = restX(i), hx = hotX(u);
+    const rs = restScale, hs = hotScale(d);
+    const ra = (Math.abs(rx) > strip.clientWidth) ? 0 : 1, ha = hotAlpha(d);
+    const x = rx + (hx - rx) * k;
+    const s = rs + (hs - rs) * k;
+    const a = ra + (ha - ra) * k;
+    b.style.transform = "translateX(" + x.toFixed(2) + "px) scale(" + s.toFixed(4) + ")";
+    b.style.opacity = a.toFixed(3);
+    b.style.zIndex  = String(10 - Math.round(d));
+    b.style.pointerEvents = (a < 0.05) ? "none" : "auto";
+  }
+  const f = focusIndex(), L = LIDS[f];
+  tagEl.style.top = "calc(50% + " + (BIG * 0.5 * (restScale + (1 - restScale) * k) + 18) + "px)";
+  tagEl.innerHTML = L.n + " &nbsp;·&nbsp; <em>" + L.word + "</em> &nbsp;·&nbsp; " + L.ft.toFixed(1) + " FT";
+  tagEl.style.opacity = String(Math.max(0, (k - 0.35) / 0.65) * Math.max(0, 1 - Math.abs(pos - f) * 2.4));
+}
+function focusIndex(){ return Math.max(0, Math.min(N-1, Math.round(pos))); }
+
+/* --------------------------------------------------------- drag and wheel */
+function stepPx(){ return STEP * (1 - k) + (BIG * 0.56) * k; }
+
+strip.addEventListener("pointerdown", e=>{
+  if(openIdx >= 0) return;
+  dragging = true; moved = 0;
+  startX = e.clientX; startPos = pos;
+  over = -1; clearTimeout(enterT); clearTimeout(leaveT);
+  hovered = -1; kWant = 0;
+  strip.classList.add("drag");
+  try{ strip.setPointerCapture(e.pointerId); }catch(err){}
+});
+strip.addEventListener("pointermove", e=>{
+  if(!dragging) return;
+  const dx = e.clientX - startX;
+  moved = Math.max(moved, Math.abs(dx));
+  pos = clamp(startPos - dx / stepPx());
+  target = pos; place();
+});
+function endDrag(e){
+  if(!dragging) return;
+  dragging = false;
+  strip.classList.remove("drag");
+  try{ strip.releasePointerCapture(e.pointerId); }catch(err){}
+  target = clamp(Math.round(pos));
+}
+strip.addEventListener("pointerup", endDrag);
+strip.addEventListener("pointercancel", endDrag);
+
+let wheelIdle;
+strip.addEventListener("wheel", e=>{
+  if(openIdx >= 0) return;
+  const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+  if(!d) return;
+  e.preventDefault();
+  pos = clamp(pos + d / stepPx() * 0.8);
+  target = pos; place();
+  clearTimeout(wheelIdle);
+  wheelIdle = setTimeout(()=>{ target = clamp(Math.round(pos)); }, 130);
+}, {passive:false});
+
+document.addEventListener("keydown", e=>{
+  if(openIdx >= 0){
+    if(e.key === "Escape") closeRecord();
+    if(e.key === "ArrowLeft")  openRecord((openIdx + N - 1) % N);
+    if(e.key === "ArrowRight") openRecord((openIdx + 1) % N);
+    return;
+  }
+  if(e.key === "ArrowLeft"){  target = clamp(Math.round(pos) - 1); e.preventDefault(); }
+  if(e.key === "ArrowRight"){ target = clamp(Math.round(pos) + 1); e.preventDefault(); }
+});
+function clamp(v){ return Math.max(0, Math.min(N - 1, v)); }
+
+/* -------------------------------------------------------------- the record */
+const recEl  = document.getElementById("record");
+const dataEl = document.getElementById("data");
+const bigEl  = document.getElementById("big");
+let openIdx = -1;
+
+function openRecord(i){
+  openIdx = i; over = -1; hovered = -1;
+  clearTimeout(enterT); clearTimeout(leaveT);
+  target = pos = i;
+  strip.classList.add("gone");
+  recEl.classList.add("on");
+  document.getElementById("hint").textContent = "← → TO MOVE · ESC TO CLOSE";
+  const s = Math.max(150, Math.min(window.innerWidth*0.62, window.innerHeight*0.46));
+  bigEl.style.width = bigEl.style.height = s + "px";
+  bigEl.src = LIDS[i].src;
+  const L = LIDS[i];
+  const rows = [
+    ["SPECIMEN", L.n],
+    ["FOUND",    "211 Bay 35th St"],
+    ["POSITION", L.ft.toFixed(1) + " ft"],
+    ["MATERIAL", "cast iron"],
+    ["READS",    L.word],
+    ["ALSO",     L.sub]
+  ];
+  dataEl.innerHTML = rows.map(r => "<dt>"+r[0]+"</dt><dd>"+r[1]+"</dd>").join("");
+}
+function closeRecord(){
+  openIdx = -1; kWant = 0;
+  recEl.classList.remove("on");
+  strip.classList.remove("gone");
+  document.getElementById("hint").textContent = "DRAG SIDEWAYS · HOVER TO LOOK";
+  place();
+}
+document.getElementById("prev").onclick  = ()=>openRecord((openIdx + N - 1) % N);
+document.getElementById("next").onclick  = ()=>openRecord((openIdx + 1) % N);
+document.getElementById("close").onclick = closeRecord;
+
+/* -------------------------------------------------------------------- loop */
+let last = 0, ready = false;
+function frame(t){
+  const dt = last ? Math.min(0.1, (t - last)/1000) : 0;
+  last = t;
+  if(ready){
+    let moving = false;
+    if(Math.abs(kWant - k) > 0.0008){ k += (kWant - k) * Math.min(1, dt * 7.5); moving = true; }
+    else if(k !== kWant){ k = kWant; moving = true; }
+    if(!dragging && Math.abs(target - pos) > 0.0008){ pos += (target - pos) * Math.min(1, dt * (k > 0.5 ? 4.8 : 8.5)); moving = true; }
+    if(moving) place();
+  }
+  requestAnimationFrame(frame);
+}
+
+function boot(){ sizeStrip(); place(); }
+let rt;
+window.addEventListener("resize", ()=>{ if(!ready) return; clearTimeout(rt); rt = setTimeout(boot, 140); });
+
+Promise.all(nodes.map(b=>{
+  const im = b.firstChild;
+  return im.complete ? Promise.resolve() : new Promise(r=>{ im.onload = r; im.onerror = r; });
+})).then(()=>{
+  ready = true;
+  document.getElementById("boot").classList.add("gone");
+  boot();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(boot);
+});
+requestAnimationFrame(frame);
+
+})();
+</script>
+
+</body>
+</html>
