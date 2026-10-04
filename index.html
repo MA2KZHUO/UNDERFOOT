@@ -39,7 +39,7 @@ body{
 
 .frame{position:fixed; inset:0; display:flex; flex-direction:column}
 
-.topbar,.botbar{
+.topbar{
   flex:0 0 auto;
   padding-inline:clamp(16px,4vw,48px);
   font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
@@ -48,10 +48,10 @@ body{
   position:relative; z-index:20; pointer-events:none;
 }
 .topbar{padding-block:clamp(14px,3vh,26px) 0}
-.botbar{padding-block:0 clamp(14px,3vh,26px)}
-.topbar b{color:var(--ink); font-weight:700}
+.topbar b{color:var(--ink); font-weight:700; letter-spacing:.2em}
 
-.stage{flex:1 1 auto; position:relative; min-height:0; overflow:hidden}
+.stage{flex:1 1 auto; position:relative; min-height:0; overflow:hidden;
+       padding-bottom:clamp(14px,3vh,26px)}
 
 #strip{position:absolute; inset:0; cursor:grab; touch-action:pan-y}
 #strip.drag{cursor:grabbing}
@@ -114,22 +114,47 @@ body{
 }
 #close:hover{color:var(--ink)}
 
-.botbar .right{display:flex; align-items:baseline; gap:18px}
-#sound{
+.topbar .links{display:flex; gap:20px}
+.link{
   pointer-events:auto;
   font:inherit; letter-spacing:.16em; color:var(--grey);
   background:none; border:0; padding:2px 0; cursor:pointer;
-  display:inline-flex; align-items:center; gap:7px;
+  border-bottom:1px solid transparent;
 }
-#sound:hover{color:var(--ink)}
-#sound:focus-visible{outline:1px solid var(--ink); outline-offset:3px}
-#sound i{
-  width:6px; height:6px; border-radius:50%;
-  border:1px solid currentColor; background:transparent;
-  transition:background .25s;
+.link:hover{color:var(--ink); border-bottom-color:var(--rule)}
+.link:focus-visible{outline:1px solid var(--ink); outline-offset:3px}
+
+#page{
+  position:fixed; inset:0; z-index:40;
+  background:var(--paper); overflow-y:auto;
+  padding:clamp(28px,7vh,80px) clamp(16px,6vw,64px) clamp(40px,8vh,90px);
 }
-#sound[aria-pressed="true"]{color:var(--ink)}
-#sound[aria-pressed="true"] i{background:currentColor}
+#page .sheet{max-width:58ch; margin:0 auto}
+#page h2{
+  font-family:var(--mono); font-size:11px; font-weight:400;
+  letter-spacing:.2em; color:var(--grey); text-transform:uppercase;
+  margin:0 0 28px; padding-bottom:14px; border-bottom:1px solid var(--rule);
+}
+#page p{
+  font-size:clamp(16px,1.5vw,19px); font-weight:300; line-height:1.65;
+  margin:0 0 1.25em; color:var(--ink);
+}
+#page p:last-child{margin-bottom:0}
+#page dl{
+  font-family:var(--mono); font-size:12px; line-height:1.9; margin:0;
+  display:grid; grid-template-columns:minmax(9em,auto) 1fr; gap:4px 24px;
+}
+#page dt{color:var(--grey); letter-spacing:.1em}
+#page dd{margin:0}
+#page .rule{height:1px; background:var(--rule); margin:26px 0; grid-column:1/-1}
+#page a{color:var(--ink); text-underline-offset:3px}
+#pageClose{
+  position:fixed; top:clamp(12px,3vh,26px); right:clamp(16px,4vw,48px);
+  background:none; border:0; cursor:pointer; padding:6px 2px; z-index:41;
+  font-family:var(--mono); font-size:10px; letter-spacing:.16em; color:var(--grey);
+}
+#pageClose:hover{color:var(--ink)}
+
 
 @media (prefers-reduced-motion:reduce){ #record,#boot{transition:none} }
 </style>
@@ -139,8 +164,11 @@ body{
 <div class="frame">
 
   <div class="topbar">
-    <span><b>UNDERFOOT</b> &nbsp;NINE CAST-IRON CURB BOXES</span>
-    <span>RELIEF PRINTS, 2026</span>
+    <span><b>UNDERFOOT</b></span>
+    <span class="links">
+      <button class="link" data-page="about">ABOUT</button>
+      <button class="link" data-page="colophon">COLOPHON</button>
+    </span>
   </div>
 
   <div class="stage">
@@ -156,13 +184,14 @@ body{
     </div>
   </div>
 
-  <div class="botbar">
-    <span>211 BAY 35TH STREET, BROOKLYN &nbsp;—&nbsp; 40 FEET</span>
-    <span class="right">
-      <span id="hint">DRAG SIDEWAYS · HOVER TO LOOK</span>
-      <button id="sound" aria-pressed="false">SOUND <i></i></button>
-    </span>
+  <div id="page" hidden>
+    <div class="sheet">
+      <h2 id="pageTitle"></h2>
+      <div id="pageBody"></div>
+    </div>
+    <button id="pageClose">CLOSE &#215;</button>
   </div>
+
 
 </div>
 
@@ -221,21 +250,30 @@ for(let i=0;i<N;i++){
     clearTimeout(enterT);
     const wait = (hovered >= 0 && k > 0.4) ? DWELL_SWAP : DWELL_IN;
     enterT = setTimeout(()=>{            // settle on it; sweeping past does nothing
-      if(over === i && !dragging && openIdx < 0){ hovered = i; kWant = 1; target = i; }
+      if(over === i && !dragging && openIdx < 0){
+        hovered = i; kWant = 1; target = pos + wrapDelta(i - pos);
+      }
     }, wait);
   });
   b.addEventListener("pointerleave", ()=>{ if(over === i) release(); });
-  b.addEventListener("focus", ()=>{ if(openIdx < 0){ hovered = i; kWant = 1; target = i; } });
+  b.addEventListener("focus", ()=>{
+    if(openIdx < 0){ hovered = i; kWant = 1; target = pos + wrapDelta(i - pos); }
+  });
   b.addEventListener("blur",  ()=>{ if(hovered === i){ over = -1; hovered = -1; kWant = 0; } });
   b.addEventListener("click", ()=>{
     if(moved > 6) return;
-    if(k > 0.6 && Math.abs(pos - i) < 0.35) openRecord(i);
-    else { hovered = i; kWant = 1; target = i; }
+    if(k > 0.6 && Math.abs(wrapDelta(pos - i)) < 0.35) openRecord(i);
+    else { hovered = i; kWant = 1; target = pos + wrapDelta(i - pos); }
   });
 }
 strip.addEventListener("pointerleave", release);
 
-function restX(i){ return (i - pos) * STEP; }   /* at rest: evenly spaced */
+/* the row is a ring: shortest way round from pos to i */
+function wrapDelta(d){
+  d = ((d % N) + N) % N;
+  return d > N/2 ? d - N : d;
+}
+function restX(u){ return u * STEP; }   /* at rest: evenly spaced */
 function hotX(u){
   const A = BIG * 0.56, B = BIG * 0.155;
   const d = Math.abs(u), s = u < 0 ? -1 : 1;
@@ -265,13 +303,15 @@ function sizeStrip(){
 function place(){
   const restScale = REST / BIG;
   for(let i=0;i<N;i++){
-    const u = i - pos, d = Math.abs(u), b = nodes[i];
-    const rx = restX(i), hx = hotX(u);
+    const u = wrapDelta(i - pos), d = Math.abs(u), b = nodes[i];
+    const rx = restX(u), hx = hotX(u);
     const rs = restScale, hs = hotScale(d);
     const ra = (Math.abs(rx) > strip.clientWidth) ? 0 : 1, ha = hotAlpha(d);
     const x = rx + (hx - rx) * k;
     const s = rs + (hs - rs) * k;
-    const a = ra + (ha - ra) * k;
+    // soften the seam where a lid comes round from the far side
+    const seam = Math.max(0, Math.min(1, (N/2 - d) / 0.9));
+    const a = (ra + (ha - ra) * k) * seam;
     b.style.transform = "translateX(" + x.toFixed(2) + "px) scale(" + s.toFixed(4) + ")";
     b.style.opacity = a.toFixed(3);
     b.style.zIndex  = String(10 - Math.round(d));
@@ -280,9 +320,9 @@ function place(){
   const f = focusIndex(), L = LIDS[f];
   tagEl.style.top = "calc(50% + " + (BIG * 0.5 * (restScale + (1 - restScale) * k) + 18) + "px)";
   tagEl.innerHTML = L.n + " &nbsp;·&nbsp; <em>" + L.word + "</em> &nbsp;·&nbsp; " + L.ft.toFixed(1) + " FT";
-  tagEl.style.opacity = String(Math.max(0, (k - 0.35) / 0.65) * Math.max(0, 1 - Math.abs(pos - f) * 2.4));
+  tagEl.style.opacity = String(Math.max(0, (k - 0.35) / 0.65) * Math.max(0, 1 - Math.abs(wrapDelta(pos - f)) * 2.4));
 }
-function focusIndex(){ return Math.max(0, Math.min(N-1, Math.round(pos))); }
+function focusIndex(){ return ((Math.round(pos) % N) + N) % N; }
 
 /* --------------------------------------------------------- drag and wheel */
 function stepPx(){ return STEP * (1 - k) + (BIG * 0.56) * k; }
@@ -326,6 +366,7 @@ strip.addEventListener("wheel", e=>{
 }, {passive:false});
 
 document.addEventListener("keydown", e=>{
+  if(!pageEl.hidden){ if(e.key === "Escape") closePage(); return; }
   if(openIdx >= 0){
     if(e.key === "Escape") closeRecord();
     if(e.key === "ArrowLeft")  openRecord((openIdx + N - 1) % N);
@@ -335,7 +376,7 @@ document.addEventListener("keydown", e=>{
   if(e.key === "ArrowLeft"){  target = clamp(Math.round(pos) - 1); e.preventDefault(); }
   if(e.key === "ArrowRight"){ target = clamp(Math.round(pos) + 1); e.preventDefault(); }
 });
-function clamp(v){ return Math.max(0, Math.min(N - 1, v)); }
+function clamp(v){ return v; }   /* the ring has no ends */
 
 /* -------------------------------------------------------------- the record */
 const recEl  = document.getElementById("record");
@@ -346,10 +387,9 @@ let openIdx = -1;
 function openRecord(i){
   openIdx = i; over = -1; hovered = -1;
   clearTimeout(enterT); clearTimeout(leaveT);
-  target = pos = i;
+  target = pos = pos + wrapDelta(i - pos);
   strip.classList.add("gone");
   recEl.classList.add("on");
-  document.getElementById("hint").textContent = "← → TO MOVE · ESC TO CLOSE";
   const s = Math.max(150, Math.min(window.innerWidth*0.62, window.innerHeight*0.46));
   bigEl.style.width = bigEl.style.height = s + "px";
   bigEl.src = LIDS[i].src;
@@ -368,13 +408,69 @@ function closeRecord(){
   openIdx = -1; kWant = 0;
   recEl.classList.remove("on");
   strip.classList.remove("gone");
-  document.getElementById("hint").textContent = "DRAG SIDEWAYS · HOVER TO LOOK";
   place();
 }
 document.getElementById("prev").onclick  = ()=>openRecord((openIdx + N - 1) % N);
 document.getElementById("next").onclick  = ()=>openRecord((openIdx + 1) % N);
 document.getElementById("close").onclick = closeRecord;
 
+
+
+/* ------------------------------------------------------- about & colophon */
+const PAGES = {
+  about: {
+    title: "About",
+    html: `
+      <p>Nine cast-iron curb boxes are set into forty feet of sidewalk on Bay 35th
+      Street, Brooklyn. They cover valves for gas and water, and one monitoring
+      well. Most of them are older than anyone now living on the block.</p>
+
+      <p>Each one was printed by hand. Ink was rolled over the raised lettering and
+      paper pressed down onto it, so what you are looking at is contact, not a
+      photograph. Where the print breaks up, the iron has worn away. Where it is
+      solid, the letters still stand proud of the lid.</p>
+
+      <p>Nothing here says which lid covers what. The street does not say either.
+      The lettering was cast for someone who already knew.</p>`
+  },
+  colophon: {
+    title: "Colophon",
+    html: `
+      <dl>
+        <dt>TITLE</dt><dd>Underfoot</dd>
+        <dt>SUBJECT</dt><dd>Nine cast-iron curb boxes</dd>
+        <dt>FOUND</dt><dd>211 Bay 35th Street, Brooklyn</dd>
+        <dt>SPAN</dt><dd>40 feet of sidewalk</dd>
+        <span class="rule"></span>
+        <dt>PRINTS</dt><dd>Relief, hand-pulled, 2026</dd>
+        <dt>TYPEFACES</dt><dd>Public Sans, Space Mono</dd>
+        <dt>GRID</dt><dd>NYC DOT sidewalk specification &mdash; 5&prime; &times; 5&prime; flags,
+                          expansion joints every 20&prime;</dd>
+        <dt>SOUND</dt><dd>Synthesised, not recorded</dd>
+        <span class="rule"></span>
+        <dt>READING</dt><dd>Susan Leigh Star, <i>The Ethnography of Infrastructure</i>,
+                            American Behavioral Scientist 43(3), 1999</dd>
+        <dt>CODE</dt><dd><a href="https://github.com/MA2KZHUO/UNDERFOOT" target="_blank" rel="noopener">github.com/MA2KZHUO/UNDERFOOT</a></dd>
+        <span class="rule"></span>
+        <dt>BY</dt><dd>Mark Zhuo</dd>
+        <dt>COURSE</dt><dd>Core 3: Design Studio &mdash; Parsons &mdash; Fall 2026</dd>
+      </dl>`
+  }
+};
+
+const pageEl = document.getElementById("page");
+function openPage(key){
+  const p = PAGES[key]; if(!p) return;
+  document.getElementById("pageTitle").textContent = p.title;
+  document.getElementById("pageBody").innerHTML = p.html;
+  pageEl.hidden = false;
+  pageEl.scrollTop = 0;
+}
+function closePage(){ pageEl.hidden = true; }
+document.querySelectorAll(".link").forEach(b=>{
+  b.addEventListener("click", ()=>openPage(b.dataset.page));
+});
+document.getElementById("pageClose").addEventListener("click", closePage);
 
 /* ------------------------------------------------------ the block, heard
    Nothing is sampled. A low bed of traffic, footsteps that come near and go
@@ -517,19 +613,26 @@ const Ambient = (function(){
     master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.8);
   }
 
-  return { toggle(){ if(running){ stop(); return false; } return start(); } };
+  return { start, stop };
 })();
 
-const soundBtn = document.getElementById("sound");
-soundBtn.addEventListener("click", ()=>{
-  const on = Ambient.toggle();
-  soundBtn.setAttribute("aria-pressed", on ? "true" : "false");
-});
-document.addEventListener("visibilitychange", ()=>{
-  if(document.hidden && soundBtn.getAttribute("aria-pressed") === "true"){
-    Ambient.toggle();
-    soundBtn.setAttribute("aria-pressed", "false");
+/* Browsers hold audio until the visitor has touched the page, so the street
+   starts itself on whatever they do first — a move, a click, a key. */
+let soundStarted = false;
+function wakeSound(){
+  if(soundStarted) return;
+  soundStarted = Ambient.start();
+  if(soundStarted){
+    ["pointerdown","pointermove","keydown","wheel","touchstart"]
+      .forEach(ev => window.removeEventListener(ev, wakeSound));
   }
+}
+["pointerdown","pointermove","keydown","wheel","touchstart"]
+  .forEach(ev => window.addEventListener(ev, wakeSound, {passive:true}));
+
+document.addEventListener("visibilitychange", ()=>{
+  if(!soundStarted) return;
+  if(document.hidden) Ambient.stop(); else Ambient.start();
 });
 
 /* -------------------------------------------------------------------- loop */
