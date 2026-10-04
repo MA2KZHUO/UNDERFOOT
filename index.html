@@ -83,20 +83,52 @@ body{
 
 #record{
   position:absolute; inset:0; z-index:30;
-  display:grid; place-items:center; gap:clamp(16px,3vh,28px);
-  padding:clamp(16px,4vw,40px);
   background:var(--paper);
+  overflow-y:auto; overscroll-behavior:contain;
   opacity:0; pointer-events:none; transition:opacity .35s;
 }
 #record.on{opacity:1; pointer-events:auto}
-#record img{display:block}
 
+.specimen{
+  display:grid; grid-template-columns:46% 54%;
+  max-width:1500px; margin:0 auto;
+  padding-inline:clamp(16px,5vw,64px);
+}
+.lidcol{
+  position:sticky; top:0; height:100vh;
+  display:grid; place-items:center;
+}
+.lidcol canvas{display:block; max-width:100%}
+.textcol{padding-block:38vh 62vh; padding-left:clamp(20px,5vw,80px)}
+
+.textcol h2{
+  font-family:var(--mono); font-size:11px; font-weight:400;
+  letter-spacing:.2em; color:var(--grey); text-transform:uppercase;
+  margin:0 0 20px; padding-bottom:14px; border-bottom:1px solid var(--rule);
+}
 .data{
   font-family:var(--mono); font-size:12px; line-height:2;
-  margin:0; display:grid; grid-template-columns:auto auto; gap:0 18px;
+  margin:0 0 56vh; display:grid; grid-template-columns:auto 1fr; gap:0 20px;
 }
-.data dt{color:var(--grey); letter-spacing:.08em}
-.data dd{margin:0; font-variant-numeric:tabular-nums; text-align:right}
+.data dt{color:var(--grey); letter-spacing:.1em}
+.data dd{margin:0; font-variant-numeric:tabular-nums}
+
+.textcol .line{
+  font-size:clamp(20px,2.3vw,30px); font-weight:300; line-height:1.35;
+  margin:0 0 58vh; max-width:18ch; text-wrap:balance; color:var(--ink);
+}
+.textcol .last{
+  font-family:var(--mono); font-size:11px; letter-spacing:.18em;
+  color:var(--grey); margin:0; text-transform:uppercase;
+}
+
+@media (max-width:820px){
+  .specimen{grid-template-columns:1fr}
+  .lidcol{height:44vh; top:0; background:var(--paper); z-index:1}
+  .textcol{padding-left:0; padding-block:12vh 60vh}
+  .textcol .line{margin-bottom:52vh; max-width:none}
+  .data{margin-bottom:46vh}
+}
 
 .nav{
   position:absolute; top:50%; transform:translateY(-50%);
@@ -105,6 +137,7 @@ body{
 }
 .nav:hover{color:var(--ink)}
 .nav:focus-visible{outline:2px solid var(--ink)}
+#prev,#next{position:fixed}
 #prev{left:clamp(4px,2vw,24px)} #next{right:clamp(4px,2vw,24px)}
 
 #close{
@@ -176,13 +209,14 @@ body{
     <div id="boot">LOADING THE PRINTS</div>
 
     <div id="record">
-      <img id="big" alt="">
-      <dl class="data" id="data"></dl>
+      <article class="specimen">
+        <div class="lidcol"><canvas id="big"></canvas></div>
+        <div class="textcol" id="textcol"></div>
+      </article>
       <button class="nav" id="prev" aria-label="Previous specimen">&#8592;</button>
       <button class="nav" id="next" aria-label="Next specimen">&#8594;</button>
       <button id="close">CLOSE &#215;</button>
     </div>
-  </div>
 
   <div id="page" hidden>
     <div class="sheet">
@@ -378,11 +412,71 @@ document.addEventListener("keydown", e=>{
 });
 function clamp(v){ return v; }   /* the ring has no ends */
 
+
+/* ------------------------------------------- reading wears the lid away
+   Progress through the text is the only thing that erodes it. Scroll to the
+   end and there is nothing left to look at. */
+function rng(seed){
+  let t = seed >>> 0;
+  return function(){
+    t = (t + 0x6D2B79F5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const BLOBS = LIDS.map((L,i)=>{
+  const r = rng(9001 + i*77), a = [];
+  for(let k=0;k<3400;k++) a.push([r(), r(), r()]);
+  return a;
+});
+
+function paintLid(cv, idx, cssPx, p){
+  const img = nodes[idx] && nodes[idx].firstChild;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const S = Math.round(cssPx * dpr);
+  if(cv.width !== S){ cv.width = S; cv.height = S; }
+  cv.style.width = cv.style.height = cssPx + "px";
+
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, S, S);
+  if(!img || !img.complete) return;
+
+  const off = document.createElement("canvas");
+  off.width = S; off.height = S;
+  const o = off.getContext("2d");
+  o.drawImage(img, 0, 0, S, S);
+
+  const B = BLOBS[idx], c = S/2;
+  const count = Math.round(3400 * Math.pow(p, 1.05));
+  o.globalCompositeOperation = "destination-out";
+  for(let k=0;k<count && k<B.length;k++){
+    const b = B[k];
+    const a = b[0]*Math.PI*2;
+    const rad = Math.pow(b[1], 0.6) * S * 0.52;
+    const size = S * (0.006 + (0.018 + 0.055*p) * b[2]);
+    o.beginPath();
+    o.arc(c + Math.cos(a)*rad, c + Math.sin(a)*rad, size, 0, Math.PI*2);
+    o.fill();
+  }
+  o.globalCompositeOperation = "source-over";
+
+  // the last stretch takes whatever survived the blobs
+  ctx.globalAlpha = p > 0.86 ? Math.max(0, 1 - (p - 0.86) / 0.14) : 1;
+  ctx.drawImage(off, 0, 0);
+  ctx.globalAlpha = 1;
+}
+
 /* -------------------------------------------------------------- the record */
 const recEl  = document.getElementById("record");
-const dataEl = document.getElementById("data");
-const bigEl  = document.getElementById("big");
-let openIdx = -1;
+const textEl = document.getElementById("textcol");
+const bigCv  = document.getElementById("big");
+let openIdx = -1, lidSize = 420, readP = 0, rafPending = false;
+
+function lidBox(){
+  const w = window.innerWidth, h = window.innerHeight;
+  return w > 820 ? Math.min(w * 0.40, h * 0.74) : Math.min(w * 0.68, h * 0.36);
+}
 
 function openRecord(i){
   openIdx = i; over = -1; hovered = -1;
@@ -390,20 +484,41 @@ function openRecord(i){
   target = pos = pos + wrapDelta(i - pos);
   strip.classList.add("gone");
   recEl.classList.add("on");
-  const s = Math.max(150, Math.min(window.innerWidth*0.62, window.innerHeight*0.46));
-  bigEl.style.width = bigEl.style.height = s + "px";
-  bigEl.src = LIDS[i].src;
+
   const L = LIDS[i];
   const rows = [
     ["SPECIMEN", L.n],
     ["FOUND",    "211 Bay 35th St"],
-    ["POSITION", L.ft.toFixed(1) + " ft"],
     ["MATERIAL", "cast iron"],
-    ["READS",    L.word],
-    ["ALSO",     L.sub]
+    ["READS",    L.word]
   ];
-  dataEl.innerHTML = rows.map(r => "<dt>"+r[0]+"</dt><dd>"+r[1]+"</dd>").join("");
+  textEl.innerHTML =
+    "<h2>" + L.word + "</h2>" +
+    "<dl class='data'>" + rows.map(r=>"<dt>"+r[0]+"</dt><dd>"+r[1]+"</dd>").join("") + "</dl>" +
+    (LINES[L.n] || []).map(t=>"<p class='line'>"+t+"</p>").join("") +
+    "<p class='last'>Nothing further survives on this lid.</p>";
+
+  recEl.scrollTop = 0;
+  readP = 0;
+  lidSize = lidBox();
+  paintLid(bigCv, i, lidSize, 0);
 }
+
+function onRead(){
+  if(openIdx < 0) return;
+  const max = recEl.scrollHeight - recEl.clientHeight;
+  const p = max > 0 ? Math.max(0, Math.min(1, recEl.scrollTop / max)) : 0;
+  if(Math.abs(p - readP) < 0.004) return;      // redraw in steps, not every pixel
+  readP = p;
+  if(rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(()=>{
+    rafPending = false;
+    paintLid(bigCv, openIdx, lidSize, readP);
+  });
+}
+recEl.addEventListener("scroll", onRead, {passive:true});
+
 function closeRecord(){
   openIdx = -1; kWant = 0;
   recEl.classList.remove("on");
@@ -415,6 +530,38 @@ document.getElementById("next").onclick  = ()=>openRecord((openIdx + 1) % N);
 document.getElementById("close").onclick = closeRecord;
 
 
+
+
+/* three lines per lid, set far apart so reading one takes a scroll */
+const LINES = {
+ "01":["Cast to outlast everyone who would ever read it.",
+       "Two words of instruction, addressed to nobody in particular.",
+       "The ground keeps its own records and shows them to no one."],
+ "02":["It was never addressed to you.",
+       "A word for something that has not stopped moving under this spot in a hundred years.",
+       "You have walked over it more times than you have read it."],
+ "03":["Three letters, still legible, still ignored.",
+       "Legible is not the same as read.",
+       "It will be here after the building it serves is gone."],
+ "04":["An abbreviation nobody alive needs expanded.",
+       "The foundry is gone. The letters are not.",
+       "A name outliving the thing it named."],
+ "05":["The same word, worn further.",
+       "Two lids, one block, forty years between them.",
+       "Wear is not an accident. It is a measurement."],
+ "06":["The most writing on any lid here, and the least read.",
+       "Someone set this type. Someone approved it. Someone poured it.",
+       "All of that, to be stepped on."],
+ "07":["Two letters and a gap where the rest used to be.",
+       "The street reads with its whole weight.",
+       "Shorter every year, and never finished."],
+ "08":["Still saying it. There is just less of it saying.",
+       "You can read it because you already know what it says.",
+       "Recognition is not the same as reading."],
+ "09":["Nobody wrote this down because nobody thought it would go.",
+       "What is left is not a word. It is the shape of a word.",
+       "\u2014"]
+};
 
 /* ------------------------------------------------------- about & colophon */
 const PAGES = {
@@ -652,7 +799,14 @@ function frame(t){
 
 function boot(){ sizeStrip(); place(); }
 let rt;
-window.addEventListener("resize", ()=>{ if(!ready) return; clearTimeout(rt); rt = setTimeout(boot, 140); });
+window.addEventListener("resize", ()=>{
+  if(!ready) return;
+  clearTimeout(rt);
+  rt = setTimeout(()=>{
+    boot();
+    if(openIdx >= 0){ lidSize = lidBox(); paintLid(bigCv, openIdx, lidSize, readP); }
+  }, 140);
+});
 
 Promise.all(nodes.map(b=>{
   const im = b.firstChild;
