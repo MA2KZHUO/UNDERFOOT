@@ -72,7 +72,7 @@ body{
   color:var(--grey); white-space:nowrap; text-align:center;
   pointer-events:none; z-index:12; line-height:1.7; opacity:0;
 }
-#focusTag em{font-style:normal; color:var(--ink)}
+#focusTag em{font-style:normal; color:var(--ink); letter-spacing:.18em}
 
 #boot{
   position:absolute; inset:0; display:grid; place-items:center;
@@ -319,7 +319,7 @@ function place(){
   }
   const f = focusIndex(), L = LIDS[f];
   tagEl.style.top = "calc(50% + " + (BIG * 0.5 * (restScale + (1 - restScale) * k) + 18) + "px)";
-  tagEl.innerHTML = L.n + " &nbsp;·&nbsp; <em>" + L.word + "</em> &nbsp;·&nbsp; " + L.ft.toFixed(1) + " FT";
+  tagEl.innerHTML = "<em>" + L.word + "</em>";
   tagEl.style.opacity = String(Math.max(0, (k - 0.35) / 0.65) * Math.max(0, 1 - Math.abs(wrapDelta(pos - f)) * 2.4));
 }
 function focusIndex(){ return ((Math.round(pos) % N) + N) % N; }
