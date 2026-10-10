@@ -98,7 +98,9 @@ body{
   position:sticky; top:0; height:100vh;
   display:grid; place-items:center;
 }
-.lidcol canvas{display:block; max-width:100%}
+/* the print is square and stays square: if the column is ever narrower than
+   the canvas, both axes come down together instead of the width alone */
+.lidcol canvas{display:block; max-width:100%; height:auto; aspect-ratio:1/1}
 .textcol{padding-block:42vh 58vh; padding-left:clamp(20px,5vw,80px)}
 
 .textcol h2{
@@ -522,7 +524,8 @@ function paintLid(cv, idx, cssPx, p){
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const S = Math.round(cssPx * dpr);
   if(cv.width !== S){ cv.width = S; cv.height = S; }
-  cv.style.width = cv.style.height = cssPx + "px";
+  cv.style.width  = cssPx + "px";
+  cv.style.height = "auto";          // never a fixed height — see .lidcol canvas
 
   const ctx = cv.getContext("2d");
   ctx.clearRect(0, 0, S, S);
@@ -583,7 +586,14 @@ function wearAt(p){ return Math.pow(p, 1.9); }
 
 function lidBox(){
   const w = window.innerWidth, h = window.innerHeight;
-  return w > 820 ? Math.min(w * 0.40, h * 0.74) : Math.min(w * 0.68, h * 0.36);
+  // Measure the column the print actually sits in, not the window. The
+  // specimen grid is capped at 1500px and padded, so on a wide screen
+  // 40% of the viewport is wider than the column and the print was being
+  // squeezed sideways to fit.
+  const col = document.querySelector(".lidcol");
+  const cw = col ? col.clientWidth : w * 0.40;
+  return w > 820 ? Math.min(cw * 0.94, h * 0.74)
+                 : Math.min(cw, w * 0.68, h * 0.36);
 }
 
 function openRecord(i){
