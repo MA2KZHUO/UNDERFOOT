@@ -122,12 +122,36 @@ body{
   color:var(--grey); margin:0; text-transform:uppercase;
 }
 
+/* ---------------------------------------------- the layout comes apart too
+   --r is the read position: 0 at the top of the record, 1 at the end. The
+   same number that erases the print also lets go of the grid. The columns
+   drift apart, the archive furniture fades, the sentences grow. A page that
+   kept its composure here would be arguing against itself. */
+.lidcol{
+  transform:translateX(calc(var(--r,0) * -46%));
+  opacity:calc(1 - var(--r,0) * 0.18);
+}
+.textcol{ transform:translateX(calc(var(--r,0) * -21%)); }
+.textcol h2{ opacity:max(0, calc(1 - var(--r,0) * 3.2)); }
+.data{ opacity:max(0, calc(1 - var(--r,0) * 2.6)); }
+.textcol .line{
+  font-size:calc(clamp(20px,2.3vw,30px) * (1 + var(--r,0) * 1.15));
+  max-width:calc(18ch + var(--r,0) * 13ch);
+  transform:translateX(calc(var(--r,0) * var(--d,0) * 1px));
+}
+/* past three quarters there is no column left to belong to */
+#record.late .textcol .line{ max-width:26ch }
+#record.late .textcol .last{ text-align:center }
+
 @media (max-width:820px){
   .specimen{grid-template-columns:1fr}
   .lidcol{height:44vh; top:0; background:var(--paper); z-index:1}
   .textcol{padding-left:0; padding-block:12vh 60vh}
   .textcol .line{margin-bottom:52vh; max-width:none}
   .data{margin-bottom:46vh}
+  /* one column already — nothing to drift away from */
+  .lidcol,.textcol,.textcol .line{transform:none}
+  #record.late .textcol .line{max-width:none}
 }
 
 .nav{
@@ -472,6 +496,13 @@ const recEl  = document.getElementById("record");
 const textEl = document.getElementById("textcol");
 const bigCv  = document.getElementById("big");
 let openIdx = -1, lidSize = 420, readP = 0, rafPending = false;
+const DRIFT = [-34, 58, -16];        // each sentence leaves the measure its own way
+
+/* Reading is slow at first and the lid holds. The loss accelerates toward
+   the end, so most of the record is still legible while you are still
+   reading it — the print should outlast the first two sentences, not the
+   first paragraph. */
+function wearAt(p){ return Math.pow(p, 1.9); }
 
 function lidBox(){
   const w = window.innerWidth, h = window.innerHeight;
@@ -495,10 +526,14 @@ function openRecord(i){
   textEl.innerHTML =
     "<h2>" + L.word + "</h2>" +
     "<dl class='data'>" + rows.map(r=>"<dt>"+r[0]+"</dt><dd>"+r[1]+"</dd>").join("") + "</dl>" +
-    (LINES[L.n] || []).map(t=>"<p class='line'>"+t+"</p>").join("") +
+    (LINES[L.n] || []).map((t,j)=>
+      "<p class='line' style='--d:" + DRIFT[j % DRIFT.length] + "'>" + t + "</p>"
+    ).join("") +
     "<p class='last'>Nothing further survives on this lid.</p>";
 
   recEl.scrollTop = 0;
+  recEl.style.setProperty("--r", "0");
+  recEl.classList.remove("late");
   readP = 0;
   lidSize = lidBox();
   paintLid(bigCv, i, lidSize, 0);
@@ -514,7 +549,9 @@ function onRead(){
   rafPending = true;
   requestAnimationFrame(()=>{
     rafPending = false;
-    paintLid(bigCv, openIdx, lidSize, readP);
+    paintLid(bigCv, openIdx, lidSize, wearAt(readP));
+    recEl.style.setProperty("--r", readP.toFixed(3));
+    recEl.classList.toggle("late", readP > 0.74);
   });
 }
 recEl.addEventListener("scroll", onRead, {passive:true});
