@@ -168,7 +168,7 @@ body{
   grid-template-columns:repeat(12,1fr);
   column-gap:clamp(8px,1.1vw,18px);
   padding-block:38vh 58vh;
-  padding-left:clamp(52px,6.5vw,104px);   /* room for the marginalia to hang */
+  padding-left:clamp(20px,4vw,64px);
 }
 .textcol > *{
   grid-column:var(--c,1) / span var(--sp,5);
@@ -208,12 +208,6 @@ body{
         var(--paper) calc((var(--f,0) * 70 + var(--r,0) * 9) * 1%));
 }
 
-.l-lead{                                   /* the one statement that opens */
-  font-family:var(--mono); font-weight:700;
-  font-size:clamp(17px,1.42vw,22px);
-  line-height:1.34; letter-spacing:-.018em;
-  text-wrap:balance;
-}
 .l-pivot{                                  /* the turns */
   font-family:var(--mono); font-weight:400;
   font-size:clamp(14px,1.05vw,16.5px);
@@ -227,17 +221,6 @@ body{
 }
 .l-pivot.flush{ text-align:right }         /* one hard edge against the rag */
 
-/* ── marginalia ───────────────────────────────────────────────────────────
-   An intermittent column of numerals down the outside. It says the record
-   is enumerated without putting a specification sheet back on the page. */
-.line[data-m]::before{
-  content:attr(data-m);
-  position:absolute; right:calc(100% + clamp(14px,1.5vw,26px)); top:.6em;
-  font-family:var(--mono); font-size:9.5px; font-weight:400;
-  letter-spacing:.12em; color:var(--grey);
-  white-space:nowrap; font-variant-numeric:tabular-nums;
-  opacity:max(0, calc(1 - var(--r,0) * 2.1));
-}
 
 /* ── tick ─────────────────────────────────────────────────────────────────
    Two tracks of hairline. Not a divider — a mark, the way a measure is
@@ -261,7 +244,6 @@ body{
 }
 .textcol .l-body{  max-width:calc((30 + var(--r,0) * 7) * 1ch) }
 .textcol .l-pivot{ max-width:calc((28 + var(--r,0) * 7) * 1ch) }
-.textcol .l-lead{  max-width:17ch }
 #record.late .textcol .line{ max-width:38ch }
 #record.late .l-pivot.flush{ text-align:left }
 
@@ -291,13 +273,9 @@ body{
     pointer-events:none;
   }
   .textcol .line{max-width:none}
-  .l-lead{font-size:clamp(17px,4.9vw,22px); max-width:none}
   .l-pivot{font-size:clamp(14px,3.5vw,16.5px)}
   .l-body{font-size:13px; line-height:1.95}
   .l-pivot.flush{text-align:left}
-  .line[data-m]::before{
-    position:static; display:block; margin-bottom:7px;
-  }
   #record.late .textcol .line{max-width:none}
 }
 
@@ -322,45 +300,28 @@ body{
    About and colophon are one thing. Splitting them made two short pages
    that each needed the other to make sense: what it is, and what it is
    made of, are the same statement said twice. */
+/* ───────────────────────────────────────────────────── the foot
+   A footer, not a chapter. Everything a normal site puts down here —
+   what the thing is, what it was made of, who made it — in one low band.
+   It sizes to its content, so the home is one screen plus a strip. */
 #foot{
-  min-height:100%;
-  display:grid; grid-template-columns:1fr;
-  /* the signature sits on the floor of the page, not wherever the colophon
-     happens to stop */
-  align-content:space-between; gap:clamp(30px,5vh,54px);
   max-width:1500px; margin:0 auto;
-  padding:clamp(34px,9vh,96px) clamp(16px,5vw,64px) clamp(44px,11vh,112px);
+  padding:clamp(22px,3.4vh,34px) clamp(16px,5vw,64px) clamp(26px,4vh,42px);
   border-top:1px solid var(--rule);
+  display:grid; grid-template-columns:1fr; gap:22px clamp(28px,4vw,64px);
+  font-family:var(--mono); font-size:11px; line-height:1.85;
+  color:var(--soft);
 }
 @media (min-width:821px){
-  /* the same 46 / 54 the specimen is set on */
-  #foot{grid-template-columns:46% 54%; gap:0 clamp(32px,5vw,80px)}
+  #foot{grid-template-columns:1.5fr 1.2fr 1fr; gap:0 clamp(28px,4vw,64px)}
 }
-#foot h2{
-  font-family:var(--mono); font-size:10px; font-weight:400;
-  letter-spacing:.2em; color:var(--grey); text-transform:uppercase;
-  margin:0 0 22px; padding-bottom:12px; border-bottom:1px solid var(--rule);
-}
-#foot p{
-  font-size:clamp(14px,0.95vw,15.5px); font-weight:300; line-height:1.78;
-  margin:0 0 1.3em; max-width:46ch; color:var(--ink);
-}
+/* No labels down here. Three short columns in a footer do not need to be
+   told apart by a grey word in caps — that is form filling, and it is the
+   kind of furniture this site has been removing all along. */
+#foot .who{color:var(--ink)}
+#foot p{margin:0 0 .5em; max-width:52ch}
 #foot p:last-child{margin-bottom:0}
-#foot dl{
-  font-family:var(--mono); font-size:11.5px; line-height:1.95; margin:0;
-  display:grid; grid-template-columns:minmax(8.5em,auto) 1fr; gap:3px 24px;
-}
-#foot dt{color:var(--grey); letter-spacing:.1em}
-#foot dd{margin:0; max-width:58ch}
-#foot .rule{height:1px; background:var(--rule); margin:22px 0; grid-column:1/-1}
 #foot a{color:var(--ink); text-underline-offset:3px}
-#foot .sign{
-  grid-column:1/-1;
-  padding-top:16px; border-top:1px solid var(--rule);
-  font-family:var(--mono); font-size:10px; letter-spacing:.16em;
-  color:var(--grey); text-transform:uppercase;
-  display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
-}
 
 
 @media (prefers-reduced-motion:reduce){ #record,#boot{transition:none} }
@@ -393,49 +354,21 @@ body{
 
   <footer id="foot">
     <div>
-      <h2>About</h2>
-      <p>Nine cast-iron curb boxes are set into forty feet of sidewalk on Bay 35th
-      Street, Brooklyn. They cover valves for gas and water, and one monitoring
-      well. Most of them are older than anyone now living on the block.</p>
-
-      <p>Each one was printed by hand. Ink was rolled over the raised lettering and
-      paper pressed down onto it, so what you are looking at is contact, not a
-      photograph. Where the print breaks up, the iron has worn away. Where it is
-      solid, the letters still stand proud of the lid.</p>
-
-      <p>Nothing here says which lid covers what. The street does not say either.
-      The lettering was cast for someone who already knew.</p>
-
-      <p>Reading a record wears the print in it. That is the only mechanism on
-      this site, and it does not reverse. Closing a record and opening it again
-      gives you back a whole print, which is the one lie the piece tells.</p>
+      <p>Nine cast-iron curb boxes, 211 Bay 35th Street, Brooklyn.</p>
+      <p>Printed by hand. Contact, not a photograph — where the print breaks
+      up, the iron has worn away.</p>
     </div>
 
     <div>
-      <h2>Colophon</h2>
-      <dl>
-        <dt>TITLE</dt><dd>Underfoot</dd>
-        <dt>SUBJECT</dt><dd>Nine cast-iron curb boxes</dd>
-        <dt>FOUND</dt><dd>211 Bay 35th Street, Brooklyn</dd>
-        <dt>SPAN</dt><dd>40 feet of sidewalk</dd>
-        <span class="rule"></span>
-        <dt>PRINTS</dt><dd>Relief, hand-pulled, 2026</dd>
-        <dt>TYPEFACES</dt><dd>Public Sans, Space Mono</dd>
-        <dt>GRID</dt><dd>NYC DOT sidewalk specification &mdash; 5&prime; &times; 5&prime; flags,
-                          expansion joints every 20&prime;</dd>
-        <dt>WEAR</dt><dd>Fixed grain field, moving threshold &mdash; the loss
-                          accumulates and is never returned</dd>
-        <dt>SOUND</dt><dd>Synthesised, not recorded</dd>
-        <span class="rule"></span>
-        <dt>READING</dt><dd>Susan Leigh Star, <i>The Ethnography of Infrastructure</i>,
-                            American Behavioral Scientist 43(3), 1999</dd>
-        <dt>CODE</dt><dd><a href="https://github.com/MA2KZHUO/UNDERFOOT" target="_blank" rel="noopener">github.com/MA2KZHUO/UNDERFOOT</a></dd>
-      </dl>
+      <p>Relief prints, hand-pulled, 2026. Public Sans and Space Mono.
+      Street sound synthesised, not recorded.</p>
+      <p>Reading wears the print. It does not reverse.</p>
     </div>
 
-    <div class="sign">
-      <span>Mark Zhuo</span>
-      <span>Core 3: Design Studio &mdash; Parsons &mdash; Fall 2026</span>
+    <div>
+      <p class="who">Mark Zhuo</p>
+      <p>Core 3: Design Studio<br>Parsons &mdash; Fall 2026</p>
+      <p><a href="https://github.com/MA2KZHUO/UNDERFOOT" target="_blank" rel="noopener">github.com/MA2KZHUO/UNDERFOOT</a></p>
     </div>
   </footer>
 
@@ -784,8 +717,12 @@ function layoutFor(seed, count){
   let runC = 0, lastC = -1, lastFlush = -1, tight = false;
 
   for(let i = 0; i < count; i++){
-    if(i === 0){                       // every lid has a top edge
-      out.push({ c: 1, sp: 8, g: Math.round(7 * air), v: "lead" });
+    if(i === 0){
+      // The record still opens at the margin, with room under it — but it
+      // opens in the same voice as everything else. The opening sentence is
+      // not a headline; it is the first thing said, and nothing about a
+      // worn lid is announced.
+      out.push({ c: 1, sp: 7, g: Math.round(7 * air), v: "pivot" });
       lastC = 1; continue;
     }
 
@@ -822,8 +759,7 @@ function layoutFor(seed, count){
     const flush = v === "pivot" && c >= 4 && (i - lastFlush) > 4 && r() < 0.55;
     if(flush) lastFlush = i;
 
-    out.push({ c: c, sp: sp, g: g, v: v, flush: flush,
-               mark: c >= 2 && r() < 0.34 });
+    out.push({ c: c, sp: sp, g: g, v: v, flush: flush });
   }
   return out;
 }
@@ -834,7 +770,6 @@ function layoutFor(seed, count){
    writing overrule the grid is what keeps the hierarchy honest. */
 function voiceFor(slot, text, i){
   const n = text.length;
-  if(i === 0) return n <= 96 ? "lead" : "pivot";
   if(slot.v === "pivot") return n <= 90 ? "pivot" : "body";
   if(n <= 58) return "pivot";
   return "body";
@@ -914,15 +849,9 @@ function openRecord(i){
       html += "<div class='tick' style='--c:1;--sp:2;--g:3'></div>";
     }
 
-    // numerals only where there is margin to hang them in, and not on every
-    // one — an intermittent column reads as a record, a complete one reads
-    // as a table of contents
-    const mark = s.mark
-      ? " data-m='" + (j + 1 < 10 ? "0" + (j + 1) : (j + 1)) + "'" : "";
-
     html += "<p class='line l-" + v + (s.flush && v === "pivot" ? " flush" : "") +
-            "' style='--c:" + s.c + ";--sp:" + s.sp + ";--g:" + s.g + "'" +
-            mark + ">" + t + "</p>";
+            "' style='--c:" + s.c + ";--sp:" + s.sp + ";--g:" + s.g + "'>" +
+            t + "</p>";
   });
   textEl.innerHTML = html;
 
