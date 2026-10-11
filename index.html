@@ -44,16 +44,45 @@ body{
   padding-inline:clamp(16px,4vw,48px);
   font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
   color:var(--grey);
-  display:flex; justify-content:space-between; align-items:baseline; gap:16px;
-  position:relative; z-index:20; pointer-events:none;
+  display:flex; align-items:baseline;
+  position:relative; z-index:40; pointer-events:none;
 }
-.topbar{padding-block:clamp(14px,3vh,26px) 0}
+/* the page scrolls under it now, so it needs a floor */
+.topbar{padding-block:clamp(14px,3vh,26px) clamp(8px,1.6vh,14px);
+        background:var(--paper)}
 .topbar b{color:var(--ink); font-weight:700; letter-spacing:.2em}
 
-.stage{flex:1 1 auto; position:relative; min-height:0; overflow:hidden;
-       padding-bottom:clamp(14px,3vh,26px)}
+/* The home is one tall page: the row of prints, and under it the foot.
+   The wheel does what a wheel does — it goes down. The row is moved
+   sideways by dragging it, or by a sideways gesture, which is the
+   motion the row is actually in. */
+.stage{
+  flex:1 1 auto; position:relative; min-height:0;
+  overflow-y:auto; overflow-x:hidden;
+  overscroll-behavior-y:contain;
+  /* No scroll-snap and no scroll-behavior on this container. With two
+     sections exactly one screen apart, proximity snapping pulls every
+     wheel tick back to where it started — the wheel stops working at all.
+     The two buttons that jump ask for smooth themselves. */
+}
+#deck{
+  position:relative; height:100%;
+  padding-bottom:clamp(14px,3vh,26px);
+}
 
 #strip{position:absolute; inset:0; cursor:grab; touch-action:pan-y}
+
+/* the only thing on the home that admits there is more page */
+#cue{
+  position:absolute; left:50%; bottom:clamp(10px,2.4vh,22px);
+  transform:translateX(-50%);
+  background:none; border:0; padding:8px 10px; cursor:pointer;
+  font-family:var(--mono); font-size:13px; letter-spacing:.18em;
+  color:var(--soft); z-index:14; transition:opacity .3s;
+}
+#cue:hover{color:var(--ink)}
+#cue:focus-visible{outline:1px solid var(--ink); outline-offset:2px}
+.scrolled #cue{opacity:0; pointer-events:none}
 #strip.drag{cursor:grabbing}
 #strip.gone{opacity:0; pointer-events:none; transition:opacity .4s}
 
@@ -82,7 +111,9 @@ body{
 #boot.gone{opacity:0; pointer-events:none}
 
 #record{
-  position:absolute; inset:0; z-index:30;
+  /* fixed, not absolute: the home is a scrolling page now, and an absolute
+     overlay inside it would be as tall as the page and would scroll away */
+  position:fixed; inset:0; z-index:30;
   background:var(--paper);
   overflow-y:auto; overscroll-behavior:contain;
   opacity:0; pointer-events:none; transition:opacity .35s;
@@ -98,66 +129,175 @@ body{
   position:sticky; top:0; height:100vh;
   display:grid; place-items:center;
 }
+
+/* ───────────────────────────────────────── where the print sits on the page
+   Not the same place every time. Nine lids are set into forty feet of
+   sidewalk at nine different distances from the kerb, at nine different
+   depths, and none of those were composition decisions — the pipe decided,
+   and the pavement was poured around the result.
+
+   So the print takes a different position in each record: which side of the
+   page, how far up or down the screen, how large. Within one record it never
+   moves. It is set, the way a lid is set, and then only worn. */
+/* All of it is desktop only. On a phone there is one column and the print
+   is pinned at the top of it: there is no side to be on, and a sideways
+   nudge would just push the print off its own column. */
+@media (min-width:821px){
+  #record.side-r .specimen{ grid-template-columns:54% 46% }
+  #record.side-r .lidcol{ order:2 }
+  #record.side-r .textcol{ order:1; padding-right:clamp(40px,5vw,82px) }
+
+  #record.vt-t .lidcol{ align-items:start; padding-top:11vh }
+  #record.vt-b .lidcol{ align-items:end;   padding-bottom:13vh }
+
+  /* a static offset inside the column — set once when the record opens,
+     never touched again by the scroll */
+  .lidcol canvas{ transform:translateX(calc(var(--lx,0) * 1%)) }
+}
 /* the print is square and stays square: if the column is ever narrower than
    the canvas, both axes come down together instead of the width alone */
 .lidcol canvas{display:block; max-width:100%; height:auto; aspect-ratio:1/1}
-.textcol{padding-block:42vh 58vh; padding-left:clamp(20px,5vw,80px)}
-
-.textcol h2{
-  font-family:var(--mono); font-size:11px; font-weight:400;
-  letter-spacing:.2em; color:var(--grey); text-transform:uppercase;
-  margin:0 0 20px; padding-bottom:14px; border-bottom:1px solid var(--rule);
+/* ═══════════════════════════════════════════════ the record, as typography
+   Twelve tracks. Every fragment starts on a track and runs a whole number
+   of them, so the page has a structure you can feel before you read a word.
+   The irregularity is composed, not random: the same handful of positions
+   and measures recur, which is the difference between rhythm and noise. */
+.textcol{
+  --unit:clamp(13px,1.55vh,23px);     /* one vertical step; all gaps are multiples */
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  column-gap:clamp(8px,1.1vw,18px);
+  padding-block:38vh 58vh;
+  padding-left:clamp(52px,6.5vw,104px);   /* room for the marginalia to hang */
 }
-.data{
-  font-family:var(--mono); font-size:12px; line-height:2;
-  margin:0 0 56vh; display:grid; grid-template-columns:auto 1fr; gap:0 20px;
+.textcol > *{
+  grid-column:var(--c,1) / span var(--sp,5);
+  margin:0 0 calc(var(--g,4) * var(--unit));
+  position:relative;
 }
-.data dt{color:var(--grey); letter-spacing:.1em}
-.data dd{margin:0; font-variant-numeric:tabular-nums}
 
+/* ── three voices, all monospaced ────────────────────────────────────────
+   Which voice a fragment gets is decided by the fragment, not by its place
+   in the list: short sentences carry, long ones explain. The hierarchy is
+   therefore written into the text rather than imposed on top of it.
+
+   The record is set in the mono. A monospaced face gives every character
+   the same width whatever it is — which is exactly what the sidewalk does:
+   every letter gets the same footfall, and the ones with less material
+   behind them go first. It is also the register the thing was written in:
+   a specification, a schedule, a log. Public Sans is left to the one place
+   that is explaining rather than recording.
+
+   Mono sets wider and heavier than the sans at the same size, so every
+   size here is corrected down and every line-height opened up. And because
+   Space Mono has only two weights, the lead has to take the 700 — without
+   it the hierarchy would be carried by size alone, which is not enough. */
+/* ── the sentences wear too ───────────────────────────────────────────────
+   --f is how far this particular fragment has been read past: 0 while it is
+   still ahead of you, 1 once it is well behind. The ink is mixed back into
+   the paper by that amount, so a line you have finished with is going the
+   same way the print is going, by the same act, at the same time.
+
+   It is mixed toward the paper rather than toward grey. Grey would be a
+   different colour arriving on the page. This is the same colour leaving. */
 .textcol .line{
-  /* the same size as the prose on ABOUT — one reading voice across the site */
-  font-size:calc(clamp(16px,1.5vw,19px) * var(--s,1));
-  font-weight:300; line-height:1.65;
-  margin:0 0 calc(var(--g,74) * 1vh);
-  margin-left:calc(var(--x,0) * 1%);
-  max-width:calc(var(--w,33) * 1ch);
-  text-wrap:pretty; color:var(--ink);
-}
-.textcol .last{
-  font-family:var(--mono); font-size:11px; letter-spacing:.18em;
-  color:var(--grey); margin:0; text-transform:uppercase;
+  text-wrap:pretty;
+  color:var(--ink);                                   /* if color-mix is out */
+  color:color-mix(in oklab,
+        var(--ink),
+        var(--paper) calc((var(--f,0) * 70 + var(--r,0) * 9) * 1%));
 }
 
-/* ---------------------------------------------- the layout comes apart too
-   --r is the read position: 0 at the top of the record, 1 at the end. The
-   same number that erases the print also lets go of the grid. The columns
-   drift apart, the archive furniture fades, the sentences grow. A page that
-   kept its composure here would be arguing against itself. */
-/* The print does not move. It is set into the page the way the lid is set
-   into the sidewalk, and the only thing that happens to it is the wearing. */
-.textcol{ transform:translateX(calc(var(--r,0) * -21%)); }
-.textcol h2{ opacity:max(0, calc(1 - var(--r,0) * 3.2)); }
-.data{ opacity:max(0, calc(1 - var(--r,0) * 2.6)); }
-.textcol .line{
-  /* it grows, but only a little — the layout lets go, the type does not shout */
-  font-size:calc(clamp(16px,1.5vw,19px) * var(--s,1) * (1 + var(--r,0) * 0.26));
-  max-width:calc((var(--w,33) + var(--r,0) * 7) * 1ch);
-  transform:translateX(calc(var(--r,0) * var(--d,0) * 1px));
+.l-lead{                                   /* the one statement that opens */
+  font-family:var(--mono); font-weight:700;
+  font-size:clamp(17px,1.42vw,22px);
+  line-height:1.34; letter-spacing:-.018em;
+  text-wrap:balance;
 }
-/* past three quarters there is no column left to belong to */
-#record.late .textcol .line{ max-width:42ch }
-#record.late .textcol .last{ text-align:center }
+.l-pivot{                                  /* the turns */
+  font-family:var(--mono); font-weight:400;
+  font-size:clamp(14px,1.05vw,16.5px);
+  line-height:1.6; letter-spacing:-.004em;
+  text-wrap:balance;
+}
+.l-body{                                   /* the reading voice */
+  font-family:var(--mono); font-weight:400;
+  font-size:clamp(12px,0.82vw,13.5px);
+  line-height:1.95;
+}
+.l-pivot.flush{ text-align:right }         /* one hard edge against the rag */
+
+/* ── marginalia ───────────────────────────────────────────────────────────
+   An intermittent column of numerals down the outside. It says the record
+   is enumerated without putting a specification sheet back on the page. */
+.line[data-m]::before{
+  content:attr(data-m);
+  position:absolute; right:calc(100% + clamp(14px,1.5vw,26px)); top:.6em;
+  font-family:var(--mono); font-size:9.5px; font-weight:400;
+  letter-spacing:.12em; color:var(--grey);
+  white-space:nowrap; font-variant-numeric:tabular-nums;
+  opacity:max(0, calc(1 - var(--r,0) * 2.1));
+}
+
+/* ── tick ─────────────────────────────────────────────────────────────────
+   Two tracks of hairline. Not a divider — a mark, the way a measure is
+   marked on a drawing. */
+.tick{
+  height:0; width:min(100%, 78px);
+  border-top:1px solid var(--ink);
+  opacity:max(0, calc(.5 - var(--r,0) * 1.4));
+}
+
+/* ── the composition comes apart ──────────────────────────────────────────
+   --r is the read position: 0 at the top, 1 at the end. The same number
+   that wears the print lets go of the grid. Fragments leave along the axis
+   they were set on — the deep indents run further out, the flush-left ones
+   fall back — so the page disassembles along its own structure instead of
+   scattering. The print itself does not move: it is set into the page the
+   way the lid is set into the sidewalk. */
+.textcol .line{
+  /* it opens up, but the type never shouts */
+  transform:translateX(calc(var(--r,0) * ((var(--c,1) - 1) * 7px - 16px)));
+}
+.textcol .l-body{  max-width:calc((30 + var(--r,0) * 7) * 1ch) }
+.textcol .l-pivot{ max-width:calc((28 + var(--r,0) * 7) * 1ch) }
+.textcol .l-lead{  max-width:17ch }
+#record.late .textcol .line{ max-width:38ch }
+#record.late .l-pivot.flush{ text-align:left }
 
 @media (max-width:820px){
   .specimen{grid-template-columns:1fr}
   .lidcol{height:44vh; top:0; background:var(--paper); z-index:1}
-  .textcol{padding-left:0; padding-block:14vh 56vh}
-  .textcol .line{margin-bottom:calc(var(--g,74) * 0.62vh);
-                 margin-left:0; max-width:none; transform:none}
-  .data{margin-bottom:46vh}
-  /* one column already — nothing to drift away from */
-  .textcol,.textcol .line{transform:none}
+  /* one column: the grid has nothing to come apart into, so the hierarchy
+     has to carry the page on its own */
+  .textcol{
+    grid-template-columns:1fr;
+    padding-left:0; padding-block:12vh 56vh;
+    --unit:clamp(11px,1.3vh,18px);
+  }
+  .textcol > *{grid-column:1 / -1; max-width:none}
+  /* the drift has to be cancelled at the same specificity it was set at,
+     or the fragments slide out past the sticky print into the page margin,
+     where nothing is covering them */
+  .textcol .line{transform:none; max-width:none}
+  .textcol{position:relative; z-index:0; background:var(--paper)}
+  .lidcol{z-index:2}
+  /* the record scrolls under the print, so the line at the boundary was
+     being cut through the middle of its letters. A short run of paper
+     under the edge lets it go instead of slicing it. */
+  .lidcol::after{
+    content:""; position:absolute; left:0; right:0; top:100%; height:52px;
+    background:linear-gradient(var(--paper), rgba(246,244,239,0));
+    pointer-events:none;
+  }
+  .textcol .line{max-width:none}
+  .l-lead{font-size:clamp(17px,4.9vw,22px); max-width:none}
+  .l-pivot{font-size:clamp(14px,3.5vw,16.5px)}
+  .l-body{font-size:13px; line-height:1.95}
+  .l-pivot.flush{text-align:left}
+  .line[data-m]::before{
+    position:static; display:block; margin-bottom:7px;
+  }
   #record.late .textcol .line{max-width:none}
 }
 
@@ -178,46 +318,49 @@ body{
 }
 #close:hover{color:var(--ink)}
 
-.topbar .links{display:flex; gap:20px}
-.link{
-  pointer-events:auto;
-  font:inherit; letter-spacing:.16em; color:var(--grey);
-  background:none; border:0; padding:2px 0; cursor:pointer;
-  border-bottom:1px solid transparent;
+/* ───────────────────────────────────────────────────────────── the foot
+   About and colophon are one thing. Splitting them made two short pages
+   that each needed the other to make sense: what it is, and what it is
+   made of, are the same statement said twice. */
+#foot{
+  min-height:100%;
+  display:grid; grid-template-columns:1fr;
+  /* the signature sits on the floor of the page, not wherever the colophon
+     happens to stop */
+  align-content:space-between; gap:clamp(30px,5vh,54px);
+  max-width:1500px; margin:0 auto;
+  padding:clamp(34px,9vh,96px) clamp(16px,5vw,64px) clamp(44px,11vh,112px);
+  border-top:1px solid var(--rule);
 }
-.link:hover{color:var(--ink); border-bottom-color:var(--rule)}
-.link:focus-visible{outline:1px solid var(--ink); outline-offset:3px}
-
-#page{
-  position:fixed; inset:0; z-index:40;
-  background:var(--paper); overflow-y:auto;
-  padding:clamp(28px,7vh,80px) clamp(16px,6vw,64px) clamp(40px,8vh,90px);
+@media (min-width:821px){
+  /* the same 46 / 54 the specimen is set on */
+  #foot{grid-template-columns:46% 54%; gap:0 clamp(32px,5vw,80px)}
 }
-#page .sheet{max-width:58ch; margin:0 auto}
-#page h2{
-  font-family:var(--mono); font-size:11px; font-weight:400;
+#foot h2{
+  font-family:var(--mono); font-size:10px; font-weight:400;
   letter-spacing:.2em; color:var(--grey); text-transform:uppercase;
-  margin:0 0 28px; padding-bottom:14px; border-bottom:1px solid var(--rule);
+  margin:0 0 22px; padding-bottom:12px; border-bottom:1px solid var(--rule);
 }
-#page p{
-  font-size:clamp(16px,1.5vw,19px); font-weight:300; line-height:1.65;
-  margin:0 0 1.25em; color:var(--ink);
+#foot p{
+  font-size:clamp(14px,0.95vw,15.5px); font-weight:300; line-height:1.78;
+  margin:0 0 1.3em; max-width:46ch; color:var(--ink);
 }
-#page p:last-child{margin-bottom:0}
-#page dl{
-  font-family:var(--mono); font-size:12px; line-height:1.9; margin:0;
-  display:grid; grid-template-columns:minmax(9em,auto) 1fr; gap:4px 24px;
+#foot p:last-child{margin-bottom:0}
+#foot dl{
+  font-family:var(--mono); font-size:11.5px; line-height:1.95; margin:0;
+  display:grid; grid-template-columns:minmax(8.5em,auto) 1fr; gap:3px 24px;
 }
-#page dt{color:var(--grey); letter-spacing:.1em}
-#page dd{margin:0}
-#page .rule{height:1px; background:var(--rule); margin:26px 0; grid-column:1/-1}
-#page a{color:var(--ink); text-underline-offset:3px}
-#pageClose{
-  position:fixed; top:clamp(12px,3vh,26px); right:clamp(16px,4vw,48px);
-  background:none; border:0; cursor:pointer; padding:6px 2px; z-index:41;
-  font-family:var(--mono); font-size:10px; letter-spacing:.16em; color:var(--grey);
+#foot dt{color:var(--grey); letter-spacing:.1em}
+#foot dd{margin:0; max-width:58ch}
+#foot .rule{height:1px; background:var(--rule); margin:22px 0; grid-column:1/-1}
+#foot a{color:var(--ink); text-underline-offset:3px}
+#foot .sign{
+  grid-column:1/-1;
+  padding-top:16px; border-top:1px solid var(--rule);
+  font-family:var(--mono); font-size:10px; letter-spacing:.16em;
+  color:var(--grey); text-transform:uppercase;
+  display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
 }
-#pageClose:hover{color:var(--ink)}
 
 
 @media (prefers-reduced-motion:reduce){ #record,#boot{transition:none} }
@@ -229,15 +372,14 @@ body{
 
   <div class="topbar">
     <span><b>UNDERFOOT</b></span>
-    <span class="links">
-      <button class="link" data-page="about">ABOUT</button>
-      <button class="link" data-page="colophon">COLOPHON</button>
-    </span>
   </div>
 
   <div class="stage">
+   <div id="deck">
     <div id="strip"><div id="focusTag"></div></div>
     <div id="boot">LOADING THE PRINTS</div>
+    <button id="cue" aria-label="About and colophon">&#8595;</button>
+   </div>
 
     <div id="record">
       <article class="specimen">
@@ -249,15 +391,55 @@ body{
       <button id="close">CLOSE &#215;</button>
     </div>
 
-  <div id="page" hidden>
-    <div class="sheet">
-      <h2 id="pageTitle"></h2>
-      <div id="pageBody"></div>
+  <footer id="foot">
+    <div>
+      <h2>About</h2>
+      <p>Nine cast-iron curb boxes are set into forty feet of sidewalk on Bay 35th
+      Street, Brooklyn. They cover valves for gas and water, and one monitoring
+      well. Most of them are older than anyone now living on the block.</p>
+
+      <p>Each one was printed by hand. Ink was rolled over the raised lettering and
+      paper pressed down onto it, so what you are looking at is contact, not a
+      photograph. Where the print breaks up, the iron has worn away. Where it is
+      solid, the letters still stand proud of the lid.</p>
+
+      <p>Nothing here says which lid covers what. The street does not say either.
+      The lettering was cast for someone who already knew.</p>
+
+      <p>Reading a record wears the print in it. That is the only mechanism on
+      this site, and it does not reverse. Closing a record and opening it again
+      gives you back a whole print, which is the one lie the piece tells.</p>
     </div>
-    <button id="pageClose">CLOSE &#215;</button>
+
+    <div>
+      <h2>Colophon</h2>
+      <dl>
+        <dt>TITLE</dt><dd>Underfoot</dd>
+        <dt>SUBJECT</dt><dd>Nine cast-iron curb boxes</dd>
+        <dt>FOUND</dt><dd>211 Bay 35th Street, Brooklyn</dd>
+        <dt>SPAN</dt><dd>40 feet of sidewalk</dd>
+        <span class="rule"></span>
+        <dt>PRINTS</dt><dd>Relief, hand-pulled, 2026</dd>
+        <dt>TYPEFACES</dt><dd>Public Sans, Space Mono</dd>
+        <dt>GRID</dt><dd>NYC DOT sidewalk specification &mdash; 5&prime; &times; 5&prime; flags,
+                          expansion joints every 20&prime;</dd>
+        <dt>WEAR</dt><dd>Fixed grain field, moving threshold &mdash; the loss
+                          accumulates and is never returned</dd>
+        <dt>SOUND</dt><dd>Synthesised, not recorded</dd>
+        <span class="rule"></span>
+        <dt>READING</dt><dd>Susan Leigh Star, <i>The Ethnography of Infrastructure</i>,
+                            American Behavioral Scientist 43(3), 1999</dd>
+        <dt>CODE</dt><dd><a href="https://github.com/MA2KZHUO/UNDERFOOT" target="_blank" rel="noopener">github.com/MA2KZHUO/UNDERFOOT</a></dd>
+      </dl>
+    </div>
+
+    <div class="sign">
+      <span>Mark Zhuo</span>
+      <span>Core 3: Design Studio &mdash; Parsons &mdash; Fall 2026</span>
+    </div>
+  </footer>
+
   </div>
-
-
 </div>
 
 <script>
@@ -431,17 +613,20 @@ strip.addEventListener("pointercancel", endDrag);
 let wheelIdle;
 strip.addEventListener("wheel", e=>{
   if(openIdx >= 0) return;
-  const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-  if(!d) return;
+  // Down is down. Only a sideways gesture moves the row — which is the
+  // direction the row is in, so nothing has to be explained to anybody.
+  if(Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;   // the page takes it
   e.preventDefault();
-  pos = clamp(pos + d / stepPx() * 0.8);
+  pos = clamp(pos + e.deltaX / stepPx() * 0.8);
   target = pos; place();
   clearTimeout(wheelIdle);
   wheelIdle = setTimeout(()=>{ target = clamp(Math.round(pos)); }, 130);
 }, {passive:false});
 
 document.addEventListener("keydown", e=>{
-  if(!pageEl.hidden){ if(e.key === "Escape") closePage(); return; }
+  if(e.key === "Escape" && openIdx < 0 && stageEl.scrollTop > 24){
+    stageEl.scrollTo({top:0, behavior:"smooth"}); return;
+  }
   if(openIdx >= 0){
     if(e.key === "Escape") closeRecord();
     if(e.key === "ArrowLeft")  openRecord((openIdx + N - 1) % N);
@@ -554,35 +739,133 @@ function paintLid(cv, idx, cssPx, p){
 }
 
 /* -------------------------------------------------------------- the record */
+const stageEl = document.querySelector(".stage");
 const recEl  = document.getElementById("record");
 const textEl = document.getElementById("textcol");
 const bigCv  = document.getElementById("big");
 let openIdx = -1, lidSize = 420, readP = 0, rafPending = false;
-const DRIFT = [-28, 46, -12, 34, -20, 58, -40, 24, 66, -16];  // each one leaves the measure its own way
-/* The rhythm the fragments are set to: how far below the last one each sits,
-   how far across the measure it starts, how wide it runs, how big it is.
-   Nothing here is regular — a page that kept a steady pitch would be saying
-   that the reading is under control. */
-const RHYTHM = [
-  { g: 74, x:   0, w: 33, s: 1.00 },
-  { g: 22, x:   9, w: 26, s: 0.92 },
-  { g: 96, x:  -7, w: 37, s: 1.10 },
-  { g: 34, x:  21, w: 24, s: 0.90 },
-  { g: 18, x:  21, w: 28, s: 0.90 },
-  { g: 88, x:   3, w: 34, s: 1.04 },
-  { g: 28, x: -11, w: 30, s: 0.94 },
-  { g: 64, x:  14, w: 27, s: 1.00 },
-  { g: 20, x:  14, w: 31, s: 0.88 },
-  { g: 104, x:  5, w: 36, s: 1.14 },
-  { g: 30, x:  -4, w: 29, s: 0.94 },
-  { g: 46, x:  18, w: 25, s: 0.90 }
-];
+/* How much ink this record has lost so far. It is a high-water mark, not a
+   reading of where you are: the lid does not get its letters back because
+   you scrolled up, any more than the block gives them back by standing
+   still. Closing the record and opening it again is the only reset, and
+   that reset is a lie the piece tells on purpose. */
+let wornSeen = 0, seenP = 0;
+/* ═══════════════════════════════════════════════════ scattering the record
+   A curb box is not placed by a designer. It is placed where the pipe comes
+   up, and the pipe was routed by somebody who never saw this sidewalk. So
+   the nine of them land across the block in no order at all — and yet every
+   single one is a perfect circle, set dead flush with the pavement.
+
+   That is exactly the rule here. WHERE a fragment lands is random. HOW it
+   lands is not: it starts on one of the twelve tracks, never between them,
+   and the gap under it is a whole number of units, never a loose value.
+   Random placement, exact fit. Scatter without slop.
+
+   The scatter is seeded from the lid's own number, so record 03 is laid out
+   differently from record 07 and neither of them ever moves again. Reload
+   it, come back next week — the fragments are where they were. Nobody
+   chose it, and it is not going to change, which is the condition the lids
+   themselves are in.                                                      */
+function layoutFor(seed, count){
+  const r = rng(seed);
+  const pick = a => a[(r() * a.length) | 0];
+
+  /* The tracks a fragment may start on, weighted: most things want to be
+     near the margin, a few want to be a long way in. An even spread would
+     put everything in the middle, which is the one place nothing should be. */
+  const STARTS  = [1,1,1,1,2,2,3,3,4,5,6,7,8];
+  const SPANS   = [4,4,4,5,5,6,7];
+  const GAPS    = [3,3,4,5,6,8];
+
+  /* each record breathes at its own rate — some blocks are crowded */
+  const air = 0.80 + r() * 0.55;
+
+  const out = [];
+  let runC = 0, lastC = -1, lastFlush = -1, tight = false;
+
+  for(let i = 0; i < count; i++){
+    if(i === 0){                       // every lid has a top edge
+      out.push({ c: 1, sp: 8, g: Math.round(7 * air), v: "lead" });
+      lastC = 1; continue;
+    }
+
+    /* ── which voice the slot is willing to carry ── decided first, because
+       a turn set three tracks wide is not a turn, it is a column of rubble */
+    const v = r() < 0.34 ? "pivot" : "body";
+
+    /* ── how wide ── every voice has a measure it can actually hold */
+    const sp = v === "pivot" ? 5 + ((r() * 3) | 0) : pick(SPANS);
+
+    /* ── where ── anywhere on the grid that leaves room for the measure.
+       The fragment is never allowed to run off the end and be squeezed:
+       a lid set half into the kerb is a lid somebody installed wrong. */
+    let c;
+    for(let k = 0; k < 24; k++){
+      c = Math.min(pick(STARTS), 13 - sp);
+      if(c === lastC && runC >= 2) continue;        // no third in a column
+      if(Math.abs(c - lastC) === 1 && r() < 0.6) continue;  // a one-track nudge
+      break;                                        //   reads as a mistake
+    }
+    c = Math.max(1, Math.min(c, 13 - sp));
+    runC = (c === lastC) ? runC + 1 : 1;
+    lastC = c;
+
+    /* ── how far down ── a tight pair happens when it happens, but one
+       tight gap is a pair and three in a row is a paragraph */
+    let g;
+    if(!tight && r() < 0.30){ g = 2; tight = true; }
+    else { g = pick(GAPS); if(tight) g = Math.max(g, 5); tight = false; }
+    g = Math.max(2, Math.round(g * air));
+
+    /* ── and whether it turns against the right edge ── never twice near
+       each other, or the hard edge stops being an event */
+    const flush = v === "pivot" && c >= 4 && (i - lastFlush) > 4 && r() < 0.55;
+    if(flush) lastFlush = i;
+
+    out.push({ c: c, sp: sp, g: g, v: v, flush: flush,
+               mark: c >= 2 && r() < 0.34 });
+  }
+  return out;
+}
+
+/* The voice is finally decided by the sentence. A slot can ask for a pivot,
+   but a sentence seventeen words long is not a pivot however it is set; and
+   a four-word sentence sitting in a body slot is wasted as body. Letting the
+   writing overrule the grid is what keeps the hierarchy honest. */
+function voiceFor(slot, text, i){
+  const n = text.length;
+  if(i === 0) return n <= 96 ? "lead" : "pivot";
+  if(slot.v === "pivot") return n <= 90 ? "pivot" : "body";
+  if(n <= 58) return "pivot";
+  return "body";
+}
 
 /* Reading is slow at first and the lid holds. The loss accelerates toward
    the end, so most of the record is still legible while you are still
    reading it — the print should outlast the first two sentences, not the
    first paragraph. */
 function wearAt(p){ return Math.pow(p, 1.9); }
+
+/* ──────────────────────────────────────────────────────── the nine settings
+   side : which side of the page the print is set into
+   vt   : where it sits in the height of the screen
+   k    : how much of the column it fills
+   x    : a nudge across the column, as a percentage of the print itself
+
+   Chosen rather than drawn at random, because nine is a small enough number
+   that a random draw would just happen to put six of them on the left. The
+   scatter in the text can afford to be blind. The nine positions cannot. */
+const PLACE = [
+  { side: "l", vt: "c", k: 1.00, x:   0 },
+  { side: "r", vt: "t", k: 0.86, x:   6 },
+  { side: "l", vt: "b", k: 0.92, x:  -7 },
+  { side: "r", vt: "c", k: 0.99, x:   0 },
+  { side: "l", vt: "t", k: 0.81, x:  10 },
+  { side: "r", vt: "b", k: 0.88, x:  -6 },
+  { side: "l", vt: "c", k: 0.95, x: -11 },
+  { side: "r", vt: "t", k: 0.93, x:   9 },
+  { side: "l", vt: "b", k: 0.84, x:   4 }
+];
 
 function lidBox(){
   const w = window.innerWidth, h = window.innerHeight;
@@ -592,8 +875,9 @@ function lidBox(){
   // squeezed sideways to fit.
   const col = document.querySelector(".lidcol");
   const cw = col ? col.clientWidth : w * 0.40;
-  return w > 820 ? Math.min(cw * 0.94, h * 0.74)
-                 : Math.min(cw, w * 0.68, h * 0.36);
+  const k  = (PLACE[openIdx] || PLACE[0]).k;
+  return w > 820 ? Math.min(cw * 0.94, h * 0.74) * k
+                 : Math.min(cw, w * 0.68, h * 0.36) * (0.86 + k * 0.14);
 }
 
 function openRecord(i){
@@ -601,25 +885,86 @@ function openRecord(i){
   clearTimeout(enterT); clearTimeout(leaveT);
   target = pos = pos + wrapDelta(i - pos);
   strip.classList.add("gone");
+  if(stageEl) stageEl.scrollTop = 0;   // close, and you are back at the row
   recEl.classList.add("on");
+
+  // set the print into the page — once, before anything is drawn
+  const pl = PLACE[i] || PLACE[0];
+  recEl.classList.remove("side-r", "vt-t", "vt-b");
+  if(pl.side === "r") recEl.classList.add("side-r");
+  if(pl.vt !== "c")   recEl.classList.add("vt-" + pl.vt);
+  bigCv.style.setProperty("--lx", pl.x);
 
   const L = LIDS[i];
   // No name, no number, no material. A specification sheet here would only
   // reassure you that somebody has this under control. The record is the
   // wearing itself, so the only thing on the page is what is being read away.
-  textEl.innerHTML = (LINES[L.n] || []).map(function(t, j){
-    const r = RHYTHM[j % RHYTHM.length];
-    return "<p class='line' style='--g:" + r.g + ";--x:" + r.x +
-           ";--w:" + r.w + ";--s:" + r.s +
-           ";--d:" + DRIFT[j % DRIFT.length] + "'>" + t + "</p>";
-  }).join("");
+  const frags = LINES[L.n] || [];
+  // seeded from the lid, so this record's scatter is this record's forever
+  const slots = layoutFor(4517 + i * 193, frags.length);
+  let html = "";
+  frags.forEach(function(t, j){
+    const s = slots[j];
+    const v = voiceFor(s, t, j);
+
+    // a tick before a turn that is really going to land as one — if the
+    // sentence was too long and fell back to body, the mark would be
+    // announcing something that never arrives
+    if(s.flush && v === "pivot" && j > 0){
+      html += "<div class='tick' style='--c:1;--sp:2;--g:3'></div>";
+    }
+
+    // numerals only where there is margin to hang them in, and not on every
+    // one — an intermittent column reads as a record, a complete one reads
+    // as a table of contents
+    const mark = s.mark
+      ? " data-m='" + (j + 1 < 10 ? "0" + (j + 1) : (j + 1)) + "'" : "";
+
+    html += "<p class='line l-" + v + (s.flush && v === "pivot" ? " flush" : "") +
+            "' style='--c:" + s.c + ";--sp:" + s.sp + ";--g:" + s.g + "'" +
+            mark + ">" + t + "</p>";
+  });
+  textEl.innerHTML = html;
 
   recEl.scrollTop = 0;
   recEl.style.setProperty("--r", "0");
+  measureFade();                 // a new record opens at full ink
   recEl.classList.remove("late");
-  readP = 0;
+  readP = 0; seenP = 0; wornSeen = 0;
   lidSize = lidBox();
   paintLid(bigCv, i, lidSize, 0);
+}
+
+/* ── fading the fragments you have finished with ──────────────────────────
+   Measured once when the record opens, so the scroll handler never asks the
+   page for a layout. A fragment starts going when its top passes the line
+   you read at, and is most of the way gone a screen and a half later.
+
+   The value only ever goes up. Scroll back and the sentence is still pale —
+   the same rule the print has had from the start. You cannot un-read it any
+   more than the block can un-walk on the iron. */
+let fadeEls = [], fadeTop = [], fadeNow = [];
+function fadeTops(){
+  // position inside the record's scroll content, measured the same way no
+  // matter which element happens to be the offset parent at this width
+  const base = recEl.getBoundingClientRect().top - recEl.scrollTop;
+  return fadeEls.map(el => el.getBoundingClientRect().top - base);
+}
+function measureFade(){
+  fadeEls = Array.prototype.slice.call(textEl.querySelectorAll(".line"));
+  fadeTop = fadeTops();
+  fadeNow = fadeEls.map(() => 0);
+}
+function applyFade(){
+  const read = recEl.scrollTop + recEl.clientHeight * 0.52;   // where the eye is
+  const span = recEl.clientHeight * 1.45;                     // how long it takes
+  for(let i = 0; i < fadeEls.length; i++){
+    let f = (read - fadeTop[i]) / span;
+    if(f < 0) f = 0; else if(f > 1) f = 1;
+    if(f <= fadeNow[i] + 0.015) continue;      // never back, and never for nothing
+    fadeNow[i] = f;
+    fadeEls[i].style.setProperty("--f", f.toFixed(2));
+  }
 }
 
 function onRead(){
@@ -632,9 +977,15 @@ function onRead(){
   rafPending = true;
   requestAnimationFrame(()=>{
     rafPending = false;
-    paintLid(bigCv, openIdx, lidSize, wearAt(readP));
-    recEl.style.setProperty("--r", readP.toFixed(3));
-    recEl.classList.toggle("late", readP > 0.74);
+    const w = wearAt(readP);
+    if(w > wornSeen) wornSeen = w;
+    paintLid(bigCv, openIdx, lidSize, wornSeen);
+    // the layout lets go on the same high-water mark, so the page cannot
+    // reassemble itself behind you either
+    if(readP > seenP) seenP = readP;
+    recEl.style.setProperty("--r", seenP.toFixed(3));
+    recEl.classList.toggle("late", seenP > 0.74);
+    applyFade();
   });
 }
 recEl.addEventListener("scroll", onRead, {passive:true});
@@ -657,262 +1008,301 @@ document.getElementById("close").onclick = closeRecord;
    of nothing. Reading is uneven, and a page about reading should be. */
 const LINES = {
  "01":[
-   "Cast to outlast everyone who would ever read it.",
-   "NOT TO FILL.",
-   "It is an instruction, and it is addressed to nobody in particular.",
-   "Somewhere there is a person whose job it is to open this. They have never met you and you will never meet them.",
-   "A monitoring well does not supply anything. It only reports.",
-   "Somebody drilled it to find out whether what is down there is still where it is supposed to be.",
-   "Which means this lid covers a question, not a service.",
-   "The letters were raised in a mould before they were ever walked on.",
-   "Somebody chose the size. Somebody spaced them. Somebody signed off on the spacing.",
-   "All of that is still here, under the shoe of a person who will never think about it.",
-   "Iron was the right material for a hundred years of weather and the wrong material for a hundred years of attention.",
+   "It was cast to outlast everyone who would ever read it.",
+   "It is going to. That is not the same as surviving.",
+   "The iron is fine. It will be here in three hundred years.",
+   "It is only the writing that is finite.",
+   "Iron does not scratch. It gives, very slightly, under every pass, and does not come back.",
+   "Nothing is being removed. It is being pressed down and carried off as dust you have already breathed.",
+   "There is no damage here. Damage would be an event, and nothing here is an event.",
    "It survives the rain. It does not survive being ordinary.",
-   "Nothing on this lid says what is underneath it. The street does not say either.",
-   "The lettering was cast for somebody who already knew.",
+   "Weather is not what takes a surface. Weather is slow and indifferent and leaves things roughly where they were.",
+   "Use is what takes it. Use is daily and it never misses.",
+   "This is the condition of anything placed where people go: it is removed by being useful.",
+   "A thing nobody needs is still sharp a century later, in the weeds, by the kerb.",
+   "The useful ones go first. Nobody has ever written that down as a rule.",
+   "No one on this block has damaged anything here. They have only walked.",
+   "Every one of them was on their way somewhere and none of them looked down.",
+   "The ones who erased this are the ones who never read it.",
+   "That is not cruelty. There is no one to be cruel.",
+   "Wear is the only process that gets more thorough the less anybody is paying attention.",
+   "It does not stop at night. It stops when the block does, which is never.",
+   "Nothing holds still long enough to be finished with.",
+   "You cannot find the moment. There is no moment.",
+   "The change is slower than looking, which is why none of this is ever witnessed.",
+   "Stand here for a year and you will see nothing. Come back in forty and there is nothing to see.",
+   "Between those two facts there is no third fact anybody has recorded.",
+   "What is disappearing is not the object. It is the address on it.",
+   "The surface stays. The thing it was saying goes.",
+   "Letters are the shallowest part of anything. They are the first layer and they are the one carrying all of it.",
+   "Two millimetres of relief, asked to survive a city.",
+   "It did, for a while.",
    "There is no second copy. You are standing on the only one.",
-   "The ground keeps its own records and shows them to no one.",
-   "Somebody will dig this up one day and not read it either.",
-   "They will be looking for the valve, which is the only part anybody has ever wanted.",
-   "The word was never for the person standing on it. It was for the person kneeling beside it with a key.",
-   "You are reading mail that was not sent to you, forty years late."
+   "And it is quieter than it was when you got here, by an amount nobody can measure."
  ],
  "02":[
-   "It was never addressed to you.",
-   "A word for something that has not stopped moving under this spot in a hundred years.",
-   "Four letters over a river that nobody here has a name for.",
-   "Everything it stands for is still working.",
-   "Only the saying of it is going.",
-   "The pipe does not need the word. The pipe has not read anything.",
-   "The word was for the man with the key, in the year the key was new.",
-   "He is dead. The word is still doing his job, badly, to nobody.",
    "You have walked over this more times than you have read it, and that is not a figure of speech.",
    "Count the days you have used this block. Multiply by two. That is roughly how many times.",
-   "Against that, you have read it once, today, because somebody made a website about it.",
-   "Attention is the scarce thing here. Not iron, not water, not time.",
+   "Against that, you have read it once, today.",
    "The sidewalk delivers about twelve thousand feet a day to this square foot.",
+   "Dogs, strollers, a hand truck twice a week, a snow shovel every January.",
    "None of them are trying to erase anything. That is the part worth sitting with.",
    "Wear is not vandalism. It is use.",
-   "The word is being read away by people who never read it.",
-   "Nobody on this block could tell you which of these lids is water and which is gas.",
-   "They have read both words a thousand times without once reading them.",
+   "It is being read away by people who never read it.",
+   "The eye registers the shape, decides it is pavement, and moves on. That takes about four milliseconds.",
+   "Four milliseconds, twelve thousand times a day, for ninety years.",
+   "Nobody on this block could tell you what any of these lids say.",
+   "They have passed over them a thousand times without once reading them.",
    "That is not ignorance. It is what a sidewalk is for.",
-   "A surface you have to read is a surface that has failed."
+   "A surface you have to read is a surface that has failed.",
+   "So the better it does its job, the less anybody reads it.",
+   "And the less anybody reads it, the more comfortably it is walked on.",
+   "And the more it is walked on, the less of it there is left to read.",
+   "It is not a trap. It is just how a thing in the ground ends.",
+   "There is no villain in this and there is no accident either.",
+   "Everyone who wore this down was going about their day correctly.",
+   "The loss is real and nobody did it. Both of those are true at once.",
+   "Attention is the scarce thing here. Not iron, not time.",
+   "There has been plenty of time. There has been almost no attention.",
+   "A hundred thousand passes is a missing letter.",
+   "You cannot point at the one that took it. They all did, equally, which is the same as nobody.",
+   "Every shoe is a pass. Every pass takes a measurable nothing.",
+   "Add up enough nothing and you have a word with a hole in it.",
+   "Your share is in there. Twice a day, for however long you have lived here.",
+   "It is somewhere in the shallowest part of a letter, and it is not measurable, and it is there.",
+   "You are still doing it. Standing on it is a pass."
  ],
  "03":[
-   "Three letters, still legible, still ignored.",
-   "Short enough to survive a long time.",
+   "Still legible, still ignored.",
    "Legible is not the same as read.",
+   "Short enough to survive a long time.",
    "A longer word would already be gone. Brevity is why this one is still here.",
-   "Nobody chose this spot. A pipe did.",
-   "The route was decided by pressure and grade, and the lettering followed the route.",
-   "So the position of this word in the city is an engineering fact, not a design one.",
-   "Then somebody had to set the type anyway, and centre it, and get it cast.",
-   "Design shows up at the end, to make the engineering legible, and then gets stepped on for it.",
-   "It will be here after the building it serves is gone.",
-   "That is not a metaphor. Buildings on this block have come down and the lids stayed.",
-   "A lid outlives its address.",
-   "The shortest word here, and the last one that will be left.",
-   "When the rest of this block has nothing readable on it, there will still be a G and an A and an S.",
-   "Not because anyone protected them. Because there was less of them to lose.",
-   "Three letters is what is left when a system stops explaining itself.",
-   "It began as a sentence somewhere \u2014 a specification, a clause, a drawing with a note on it.",
-   "By the time it reached the street it was an abbreviation, and by now it is a mark.",
-   "Each of those steps was somebody deciding to say less.",
-   "The street is finishing the job they started."
+   "The street is the last editor in the chain and it has no deadline.",
+   "It only cuts. It has never once added anything.",
+   "Watch the order things leave in.",
+   "The thin strokes first. Then the joins. Then the ends of the stems.",
+   "A letter does not fade. It loses the parts that made it that letter and not another one.",
+   "The crossbar goes before the stem, and the crossbar is the whole difference between an E and an F.",
+   "So the feature carrying the most meaning is the feature with the least material behind it.",
+   "That is true here and it is true of nearly every sign ever made.",
+   "The A goes first: a thin bar and a sharp apex, both of them proud of the surface.",
+   "Then the G loses its spur and becomes a C.",
+   "The S holds longest. No straight line to flatten, no corner to round off.",
+   "If you want to know what will survive, look for what has no thin part.",
+   "Three letters is what is left when something stops explaining itself.",
+   "Each step down was somebody deciding to say less, and the street is finishing the job.",
+   "Nobody was wrong to. Each cut was the right cut at the time.",
+   "This one is the last cut and there is no one making it.",
+   "Three letters now. Two in a decade.",
+   "One is not a word.",
+   "There is no plan for what happens after that, because nobody has filed it as a problem.",
+   "It is not a problem. It is a sidewalk, working.",
+   "When the rest of this block has nothing readable on it, there will still be something here.",
+   "Not because anyone protected it. Because there was less of it to lose.",
+   "That is the only preservation strategy that has ever worked on a surface like this.",
+   "Say less and stay longer.",
+   "Nobody designs for that, and the street rewards nothing else."
  ],
  "04":[
-   "An abbreviation nobody alive needs expanded.",
-   "Three initials and a country, pressed into iron by people who are dead.",
-   "C.A.S. was a company. Somebody owned it. Somebody worked there.",
-   "There was a building, and a yard, and a smell, and a payroll.",
-   "The foundry is gone. The letters are not.",
-   "This is a name outliving the thing it named.",
-   "Not preserved \u2014 just slower than the thing it was attached to.",
-   "The mark was there to say who made it, in case it failed and somebody needed to know whose fault it was.",
-   "It never failed. So the signature became decoration, and then texture, and then nothing.",
-   "USA is underneath, which in 1940 was a sales argument.",
-   "Nobody will miss the meaning, because nobody has it.",
+   "It does not get shorter in a straight line.",
+   "It turns into other words on the way down.",
+   "Every one of them is wrong, and every one of them is legible.",
+   "That is worse than illegible, and there is no way to say so on a sidewalk.",
+   "An illegible mark tells you it has failed. A wrong one does not.",
+   "Look at the periods. Somebody cared about those periods.",
+   "They are the first thing to go, because they are the smallest.",
+   "A full stop is two millimetres of iron standing proud of a surface, asked to survive a city.",
+   "On the left it is a dimple. On the right it is a memory of a dimple.",
+   "When they have gone it reads as one word, which it was never meant to be.",
+   "Then a letter, and then it is a different word entirely, and still perfectly clear.",
+   "Clarity is not accuracy. Nothing on a worn surface warns you about that.",
+   "At no point does it become unreadable. It only becomes untrue.",
    "You cannot mourn a word you never knew.",
    "That is the quiet part: most disappearance is not witnessed.",
    "It does not happen to the famous things. It happens to the ones that were already unread.",
-   "A name gets one century of being a name and then becomes a pattern in the ground.",
-   "Look at the period after each letter. Somebody cared about those periods.",
-   "They are the first thing to go, because they are the smallest.",
-   "A full stop is two millimetres of iron standing proud of a surface, asked to survive a city.",
-   "It did, for a while. It is going now.",
-   "When the periods have gone it will read CAS, which is not a name, which is nothing.",
-   "Iron holds a name for longer than a company does."
+   "Nothing is lost at the moment it goes. It was lost when the last person stopped knowing it.",
+   "The iron is just catching up with that, slowly, in public.",
+   "A word gets one century of being a word and then becomes a pattern in the ground.",
+   "The pattern is still there. It is still regular. It still looks deliberate.",
+   "It will look deliberate for centuries after it stops meaning anything.",
+   "That is the longest phase and nobody has a name for it.",
+   "Not writing, not blank. A shape with the posture of language and nothing behind it.",
+   "You are looking at the beginning of that now.",
+   "Half of what is here is already in it and you cannot tell which half.",
+   "Neither can I, and I made a print of it to find out.",
+   "The print has the same problem. It records the shape, not the meaning, because the meaning left first.",
+   "Everything that gets kept has this problem.",
+   "We keep the description and lose the thing."
  ],
  "05":[
    "The same word, worn further.",
-   "Two lids, one block, forty years between them.",
-   "Same foundry, same three letters, a different amount of walking.",
-   "This is the useful one.",
-   "One worn lid is a picture. Two worn lids are a measurement.",
+   "One worn surface is a picture. Two are a measurement.",
    "Put them side by side and the difference is not style. It is time, in a unit you can see.",
    "If you want to know how long, count what is missing.",
-   "The older one has lost the serifs first, then the counters, then the stems.",
-   "Letters do not fade evenly. They lose the thin parts, which is to say they lose what made them letters.",
-   "At the end you have a shape that is still a word only because you brought the word with you.",
-   "Wear is not an accident. It is a record.",
-   "The street has been keeping this record the whole time, without being asked, without anyone reading it.",
    "Forty years of a block's weight, written in subtraction.",
-   "This is the only archive on this street, and it is being destroyed by the act of consulting it.",
-   "Nobody set out to make this comparison. The city made it by replacing one lid and not the other.",
-   "Two dates, forty feet apart, and a method for reading the difference.",
-   "That is more than most archives give you.",
-   "What is being archived here is footfall, which nobody has ever thought to keep.",
-   "Everyone who contributed to this record is unaware of having done so.",
-   "A record nobody is keeping is still a record."
+   "Every archive adds. This one only takes away, and that is still information.",
+   "A negative is a record. A worn step tells you where people walked.",
+   "Wear is not an accident. It is a record nobody is keeping.",
+   "The street has been keeping it the whole time, without being asked, and without a reader.",
+   "What is being recorded here is footfall, which nobody has ever thought to keep.",
+   "There is no register of who walked where. There is only this.",
+   "Everyone who contributed to it is unaware of having done so.",
+   "A record nobody is keeping is still a record.",
+   "It is just a record with no index, no reader, and no end date.",
+   "And it is being destroyed by the act of consulting it.",
+   "Not by me looking at it — by everybody not looking, continuously, for sixty years.",
+   "This is the only archive on the street and the only one that works like that.",
+   "Nobody set this up. There was no method and no control group and it is better than anything I could have designed.",
+   "The newer one is already behind. It began wearing the day it was set.",
+   "In forty years it will be where this one is now, and this one will be gone.",
+   "Somebody will stand here then and think they are looking at a before and after.",
+   "They will be looking at the middle, the same as you are.",
+   "There is no before. The wearing started immediately and it has never paused.",
+   "There is no after either. It does not arrive at a state. It just keeps going.",
+   "Every version of this surface is a middle, including the one you are reading.",
+   "The sharpest it ever was lasted one afternoon and nobody photographed it.",
+   "The faintest it will ever be has no date, because nobody will be looking by then.",
+   "Between those is everything, and all of it is this.",
+   "You are inside the measurement, not outside it."
  ],
  "06":[
-   "The most writing on any lid here, and the least read.",
-   "A brand, a product name and a function, in that order.",
-   "VALVCO. G.S. VENTI-BOX.",
-   "Somebody once thought this was worth advertising.",
-   "Somebody set this type. Somebody approved it. Somebody poured it.",
-   "There was a meeting about this lettering. There was a proof.",
-   "All of that, to be stepped on.",
+   "The one that said the most is the one that says the least now.",
    "The longer the sentence, the faster it goes.",
    "More letters means more thin strokes, and thin strokes are the first thing a shoe takes.",
-   "So the lid that said the most is the lid that says the least now.",
-   "The confident ones go first. The three-letter ones outlive them.",
-   "There is a lesson in that for anybody who designs anything for a public surface.",
-   "Say less, and it will be readable longer.",
-   "Say more, and you will be illegible within a lifetime, which is roughly how long a brand lasts anyway.",
-   "The company put its name here so you would remember it. You do not.",
-   "Count the letters: seventeen, plus two periods and a hyphen.",
-   "Compare that to the lid four feet away that says GAS.",
-   "Same street, same weather, same shoes. The only variable is how much was said.",
-   "This is the clearest evidence on the block, and it is an accident.",
+   "It is not that long words are weaker. It is that there is more of them exposed.",
+   "Surface area is the whole story. Everything else is sentiment.",
+   "The confident ones go first. The short ones outlive them.",
+   "Say less, and it stays readable longer.",
+   "Say more, and you are illegible within a lifetime.",
+   "There is a lesson in that for anybody who puts anything on a public surface.",
    "Nobody ran this experiment. The sidewalk ran it, for eighty years, for free.",
+   "It had a control, a treatment, and a sample size of about three hundred million footsteps.",
+   "No funding, no review, and it has never been written up.",
+   "Same street, same weather, same shoes. The only variable is how much was said.",
    "The result is that ambition in lettering is expensive, and the street charges by the stroke.",
-   "Say less and you stay readable longer; say more and you are illegible inside a lifetime."
+   "A hyphen is the thinnest thing on a surface and it holds the most together.",
+   "It goes first, and then a compound word is two words, which is not what anyone wrote.",
+   "Then it loses a letter and becomes a description of itself, which is nearly the truth and still wrong.",
+   "That is almost a kindness and there is nobody here to receive it.",
+   "Everything elaborate here has already collapsed into something plain.",
+   "Everything plain is still standing, looking like it was the better idea all along.",
+   "It was not a better idea. It was a smaller one.",
+   "The street cannot tell the difference and neither can eighty years.",
+   "Whatever was meant by it went before the letters did.",
+   "The letters are only the last part to leave, and they leave slowest, which is why you can still see them going.",
+   "That is the only reason any of this is visible at all.",
+   "If the meaning wore at the same rate as the iron there would be nothing to look at.",
+   "Instead there is a surface still carefully saying something nobody can receive.",
+   "It will go on saying it for another sixty years, more quietly each year.",
+   "Nothing about that is tragic. It is just slower than anyone can wait."
  ],
  "07":[
-   "Two letters and a gap where the rest used to be.",
    "What is left is an initial of an initial.",
-   "G.S. stood for something. The something is not on the lid any more.",
-   "The street reads with its whole weight.",
-   "Every shoe is a pass. Every pass takes a measurable nothing.",
-   "A hundred thousand measurable nothings is a missing letter.",
-   "You can hear the absent letters if you already know them, which is the trick memory plays on reading.",
-   "Stand here not knowing and it is a mark, not a word.",
-   "Stand here knowing and your knowledge does the work the iron used to do.",
-   "At some point the reader is holding up the text.",
    "It is still saying the same thing. Quieter.",
    "Shorter every year, and never finished.",
    "There is no moment when this becomes blank. It just keeps going until nobody can tell.",
    "Disappearance does not have an end. It has a point past which nobody is looking.",
+   "Nothing finishes. Things only stop being attended to.",
+   "You can hear the missing letters if you already know them, which is the trick memory plays on reading.",
+   "Stand here not knowing and it is a mark, not a word.",
+   "Stand here knowing and your knowledge does the work the iron used to do.",
+   "At some point the reader is holding up the text.",
+   "Past that point it is not telling you anything. It is confirming something you brought.",
+   "That is the last job a worn surface has, and it only works on people who do not need it.",
+   "A word keeps its shape long after it stops being letters.",
+   "The outline survives the interior. You are reading a silhouette.",
+   "Recognition is not reading. You are remembering, and the surface is only the prompt.",
+   "This is when a thing is most at risk: when it still seems fine.",
+   "Nobody repairs something that can still be made out.",
+   "There is no budget line for legible-but-barely.",
+   "So it goes on being made out, and goes on thinning, and the day it fails nobody will have seen it coming.",
+   "The failure will be recorded as sudden. It will have taken thirty years.",
    "Two letters is the smallest a word gets while it is still a word.",
    "After this it is punctuation, and after that it is grain.",
-   "Watch the order things leave in: the thin strokes, then the joins, then the ends of the stems.",
-   "A letter does not fade. It loses the parts that made it that letter and not another one.",
-   "G becomes C. C becomes a curve. A curve becomes a mark on the ground.",
-   "Somewhere in there it stops being language, and nobody is present for it."
+   "Somewhere in there it stops being language, and nobody is present for it.",
+   "No bell, no date, nothing in a file.",
+   "To catch it you would have to stand here for a decade and not blink.",
+   "And you would see nothing, because the change is slower than looking.",
+   "That is the real reason none of this gets recorded. Not indifference. Resolution.",
+   "The event is real and it is happening and it is below the threshold of being an event.",
+   "Most of what is ending around you is ending at this speed.",
+   "You will not be told about any of it either."
  ],
  "08":[
    "Still saying it. There is just less of it saying.",
-   "The second WATER on this block, and the thinner one.",
    "You can read it because you already know what it says.",
-   "Cover the first letter and try again. It still reads. That is not the lid's doing.",
-   "A word keeps its shape long after it stops being letters.",
-   "Recognition is not the same as reading.",
-   "At some point you are remembering it, not reading it, and the lid is just the prompt.",
-   "This is when a thing is most at risk: when it still seems fine.",
-   "Nobody repairs something that can still be made out.",
-   "So it goes on being made out, and goes on thinning, and the day it fails nobody will have seen it coming.",
-   "That day is not dramatic. Somebody will dig it up and put a new one in.",
-   "The new one will be smooth and stamped and correct and will say nothing anyone needs.",
-   "And this one will go to a yard, and be melted, and come back as something else.",
-   "The iron is fine. It is only the writing that is finite.",
-   "Nine lids on forty feet of sidewalk, and this is the one most people have looked at.",
-   "It sits beside the door of the building, so it gets the most feet and the most glances.",
+   "Cover the first letter and try again. It still reads. That is not the surface's doing.",
+   "This is the one most people have looked at, and it is the one most gone.",
+   "It sits where the door is, so it gets the most feet and the most glances.",
+   "People wipe their shoes here without deciding to.",
+   "Grit, salt, sand off the beach in August, all of it worked in with the sole.",
    "Being looked at has not preserved it. It has cost it.",
    "Attention here is not care. Attention here is traffic.",
-   "The lid most seen is the lid most gone."
+   "Everywhere else attention is what saves a thing.",
+   "On a sidewalk it is the mechanism that removes it.",
+   "That inversion is the only genuinely strange thing on this block.",
+   "The one nobody walks on, by the kerb, in the weeds, is the sharpest of the nine.",
+   "It has been protected by being useless.",
+   "There is no way to recommend that as a strategy, and it is the only one that has worked here.",
+   "Eighty years of being ignored is the best conservation this street has managed.",
+   "Everything that was needed is worn. Everything that was spare is intact.",
+   "Wear is proportional to use, and use is the only reason anything was put here.",
+   "So the thing does its job and the job is what ends it.",
+   "There is no version of this where it is used and also kept.",
+   "You cannot have the surface and the walking.",
+   "Every decision about this was made correctly and the outcome is still a loss.",
+   "Not a mistake. A cost, paid in a currency nobody tracks.",
+   "The day it goes, somebody will dig it up and put a new one in.",
+   "A truck, two people, forty minutes, and a form.",
+   "The new one will be smooth and correct and will say nothing anyone needs.",
+   "And it will start wearing that afternoon, at the same rate, for the same reason.",
+   "It will not occur to anyone that this has happened before.",
+   "It has happened here at least twice already."
  ],
  "09":[
-   "Nobody wrote this one down, because nobody thought it would go.",
-   "PATENT. Which means somebody filed paper about this.",
-   "There is a drawing of this lid in an archive, with a number, in a building with a climate.",
-   "The paper is being kept. The lid is being walked on.",
-   "One of them has a reader. The other has feet.",
-   "The drawing will outlive the object it describes by several centuries.",
-   "That is backwards, and it is how every record works.",
-   "We keep the description and lose the thing.",
-   "What is left here is not a word. It is the shape of a word.",
+   "What is left is not a word. It is the shape of a word.",
    "Enough of an edge to know that something was cast, not enough to know what.",
-   "This is the end state of all nine of these, and it took eighty years.",
-   "The others are behind it by a decade or two, walking the same road at the same speed.",
+   "Nobody wrote this one down, because nobody thought it would go.",
+   "Run your hand over it and you will feel more than you can see.",
+   "The eye gave up on this about fifteen years before the hand will.",
+   "Touch is the last reader, and nobody touches a sidewalk.",
+   "This is the end state of all of them, and it took eighty years.",
+   "The others are behind it by a decade or two, going the same way at the same speed.",
    "There is nothing to do about it. That is not a failure of maintenance.",
    "A thing made to be walked on is doing well when it wears out.",
-   "There is a number for this lid in a filing system, and the number is fine.",
-   "The number will be legible in four hundred years, in a box, in the dark.",
-   "The lid will be a smooth disc of iron with a faint texture nobody can account for.",
-   "Somebody will decide it is not worth keeping, and they will be right.",
+   "It has not failed. It has been used exactly as specified, to destruction, on schedule.",
+   "Every one of these is performing correctly and will be unreadable, and both are true at once.",
    "What ends is not the object. What ends is the reading of it.",
-   "\u2014"
+   "The iron stays. It stays for a very long time.",
+   "It just stops being addressed to anyone.",
+   "You cannot keep a sidewalk. You can only keep a picture of one.",
+   "I made nine prints of these. Ink and paper, pressed by hand.",
+   "Which is the same gesture that is wearing them out, done once, on purpose, with a different intention.",
+   "The prints are now the most legible version of these surfaces that exists.",
+   "They will outlast the originals, and they are not the originals, and that is the whole condition.",
+   "Every record is a trade: the thing, for an account of the thing.",
+   "The account is always sharper and always smaller.",
+   "What I have is a flat black shape with a date on it.",
+   "What is out there is still wearing, right now, while you read this, by an amount too small to name.",
+   "Nothing I do here slows that down by one pass.",
+   "The only honest thing a record can do is be clear about what it failed to keep.",
+   "This is written down now, and it will go too.",
+   "It will go faster than the iron. Everything written down does.",
+   "There is no last version. There is only the one you happened to be here for.",
+   "—"
  ]
 };
 
-/* ------------------------------------------------------- about & colophon */
-const PAGES = {
-  about: {
-    title: "About",
-    html: `
-      <p>Nine cast-iron curb boxes are set into forty feet of sidewalk on Bay 35th
-      Street, Brooklyn. They cover valves for gas and water, and one monitoring
-      well. Most of them are older than anyone now living on the block.</p>
-
-      <p>Each one was printed by hand. Ink was rolled over the raised lettering and
-      paper pressed down onto it, so what you are looking at is contact, not a
-      photograph. Where the print breaks up, the iron has worn away. Where it is
-      solid, the letters still stand proud of the lid.</p>
-
-      <p>Nothing here says which lid covers what. The street does not say either.
-      The lettering was cast for someone who already knew.</p>`
-  },
-  colophon: {
-    title: "Colophon",
-    html: `
-      <dl>
-        <dt>TITLE</dt><dd>Underfoot</dd>
-        <dt>SUBJECT</dt><dd>Nine cast-iron curb boxes</dd>
-        <dt>FOUND</dt><dd>211 Bay 35th Street, Brooklyn</dd>
-        <dt>SPAN</dt><dd>40 feet of sidewalk</dd>
-        <span class="rule"></span>
-        <dt>PRINTS</dt><dd>Relief, hand-pulled, 2026</dd>
-        <dt>TYPEFACES</dt><dd>Public Sans, Space Mono</dd>
-        <dt>GRID</dt><dd>NYC DOT sidewalk specification &mdash; 5&prime; &times; 5&prime; flags,
-                          expansion joints every 20&prime;</dd>
-        <dt>SOUND</dt><dd>Synthesised, not recorded</dd>
-        <span class="rule"></span>
-        <dt>READING</dt><dd>Susan Leigh Star, <i>The Ethnography of Infrastructure</i>,
-                            American Behavioral Scientist 43(3), 1999</dd>
-        <dt>CODE</dt><dd><a href="https://github.com/MA2KZHUO/UNDERFOOT" target="_blank" rel="noopener">github.com/MA2KZHUO/UNDERFOOT</a></dd>
-        <span class="rule"></span>
-        <dt>BY</dt><dd>Mark Zhuo</dd>
-        <dt>COURSE</dt><dd>Core 3: Design Studio &mdash; Parsons &mdash; Fall 2026</dd>
-      </dl>`
-  }
-};
-
-const pageEl = document.getElementById("page");
-function openPage(key){
-  const p = PAGES[key]; if(!p) return;
-  document.getElementById("pageTitle").textContent = p.title;
-  document.getElementById("pageBody").innerHTML = p.html;
-  pageEl.hidden = false;
-  pageEl.scrollTop = 0;
-}
-function closePage(){ pageEl.hidden = true; }
-document.querySelectorAll(".link").forEach(b=>{
-  b.addEventListener("click", ()=>openPage(b.dataset.page));
-});
-document.getElementById("pageClose").addEventListener("click", closePage);
+/* ──────────────────────────────────────────────── the foot, and getting there
+   There is no overlay any more. About and colophon are the bottom of the
+   home page, and the wheel reaches them the way a wheel reaches the bottom
+   of anything. */
+const footEl  = document.getElementById("foot");
+function toFoot(){ footEl.scrollIntoView({behavior:"smooth", block:"start"}); }
+document.getElementById("cue").addEventListener("click", toFoot);
+stageEl.addEventListener("scroll", ()=>{
+  document.body.classList.toggle("scrolled", stageEl.scrollTop > 24);
+}, {passive:true});
 
 /* ------------------------------------------------------ the block, heard
    Nothing is sampled. A low bed of traffic, footsteps that come near and go
@@ -1099,7 +1489,13 @@ window.addEventListener("resize", ()=>{
   clearTimeout(rt);
   rt = setTimeout(()=>{
     boot();
-    if(openIdx >= 0){ lidSize = lidBox(); paintLid(bigCv, openIdx, lidSize, readP); }
+    if(openIdx >= 0){
+      lidSize = lidBox();
+      paintLid(bigCv, openIdx, lidSize, wornSeen);
+      // the fragments have moved; re-measure, but keep what they have lost
+      fadeTop = fadeTops();
+      applyFade();
+    }
   }, 140);
 });
 
