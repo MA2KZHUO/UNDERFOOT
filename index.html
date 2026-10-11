@@ -93,7 +93,13 @@ body{
   line-height:0; cursor:pointer;
 }
 .lid img{display:block; width:100%; height:100%; pointer-events:none}
-.lid:focus-visible{outline:2px solid var(--ink); outline-offset:10px}
+/* No ring on a print. Keyboard focus already shows itself — the focus
+   handler engages the lid exactly as hover does, so it grows and gives
+   its name. A rectangle on top of that is a second, louder answer to a
+   question already answered, and it is the one shape this site has
+   nowhere else. It has to be turned off explicitly, or the browser
+   draws its own. */
+.lid:focus,.lid:focus-visible{outline:none}
 
 #focusTag{
   position:absolute; left:50%; transform:translateX(-50%);
@@ -222,14 +228,6 @@ body{
 .l-pivot.flush{ text-align:right }         /* one hard edge against the rag */
 
 
-/* ── tick ─────────────────────────────────────────────────────────────────
-   Two tracks of hairline. Not a divider — a mark, the way a measure is
-   marked on a drawing. */
-.tick{
-  height:0; width:min(100%, 78px);
-  border-top:1px solid var(--ink);
-  opacity:max(0, calc(.5 - var(--r,0) * 1.4));
-}
 
 /* ── the composition comes apart ──────────────────────────────────────────
    --r is the read position: 0 at the top, 1 at the end. The same number
@@ -306,22 +304,37 @@ body{
    It sizes to its content, so the home is one screen plus a strip. */
 #foot{
   max-width:1500px; margin:0 auto;
-  padding:clamp(22px,3.4vh,34px) clamp(16px,5vw,64px) clamp(26px,4vh,42px);
-  border-top:1px solid var(--rule);
+  padding:clamp(40px,6vh,72px) clamp(16px,5vw,64px) clamp(26px,4vh,42px);
   display:grid; grid-template-columns:1fr; gap:22px clamp(28px,4vw,64px);
   font-family:var(--mono); font-size:11px; line-height:1.85;
   color:var(--soft);
 }
-@media (min-width:821px){
-  #foot{grid-template-columns:1.5fr 1.2fr 1fr; gap:0 clamp(28px,4vw,64px)}
+/* Three columns, side by side, all the way down to a phone. The way to
+   keep them side by side is not a breakpoint — it is to write lines short
+   enough that no column ever has to rewrap. Nothing here is over 32
+   characters, so a column 33 characters wide holds all of it, and the
+   three blocks stay 4 lines against 4 lines against 4 lines at every
+   width. Under 1100px the type steps down one notch to buy that room. */
+@media (min-width:640px){
+  #foot{grid-template-columns:repeat(3,1fr); gap:0 clamp(18px,2.6vw,64px)}
 }
-/* No labels down here. Three short columns in a footer do not need to be
-   told apart by a grey word in caps — that is form filling, and it is the
-   kind of furniture this site has been removing all along. */
+@media (min-width:768px) and (max-width:1099px){
+  #foot{font-size:10px; gap:0 clamp(14px,2vw,28px)}
+}
+@media (min-width:640px) and (max-width:767px){
+  #foot{font-size:9px; gap:0 12px; padding-inline:clamp(14px,3vw,28px)}
+}
+/* No labels. Three short columns in a footer do not need to be told apart
+   by a grey word in caps — that is form filling, and it is the kind of
+   furniture this site has been removing all along.
+
+   And no flowing paragraphs: each column is four lines, each line a whole
+   statement, broken where it was meant to break. Set as prose the three
+   columns wrapped at three different places and ran to three different
+   depths, which is what was making it look loose. Four lines against four
+   lines against four lines sits still. */
 #foot .who{color:var(--ink)}
-#foot p{margin:0 0 .5em; max-width:52ch}
-#foot p:last-child{margin-bottom:0}
-#foot a{color:var(--ink); text-underline-offset:3px}
+#foot p{margin:0; text-wrap:pretty}
 
 
 @media (prefers-reduced-motion:reduce){ #record,#boot{transition:none} }
@@ -354,21 +367,21 @@ body{
 
   <footer id="foot">
     <div>
-      <p>Nine cast-iron curb boxes, 211 Bay 35th Street, Brooklyn.</p>
-      <p>Printed by hand. Contact, not a photograph — where the print breaks
-      up, the iron has worn away.</p>
+      <p>Nine cast-iron curb boxes<br>
+         211 Bay 35th Street, Brooklyn<br>
+         Printed by hand, not photographed</p>
     </div>
 
     <div>
-      <p>Relief prints, hand-pulled, 2026. Public Sans and Space Mono.
-      Street sound synthesised, not recorded.</p>
-      <p>Reading wears the print. It does not reverse.</p>
+      <p>Relief prints, hand-pulled, 2026<br>
+         Public Sans, Space Mono<br>
+         Reading wears the print</p>
     </div>
 
     <div>
-      <p class="who">Mark Zhuo</p>
-      <p>Core 3: Design Studio<br>Parsons &mdash; Fall 2026</p>
-      <p><a href="https://github.com/MA2KZHUO/UNDERFOOT" target="_blank" rel="noopener">github.com/MA2KZHUO/UNDERFOOT</a></p>
+      <p><span class="who">Mark Zhuo</span><br>
+         Core 3: Design Studio<br>
+         Parsons &mdash; Fall 2026</p>
     </div>
   </footer>
 
@@ -841,13 +854,6 @@ function openRecord(i){
   frags.forEach(function(t, j){
     const s = slots[j];
     const v = voiceFor(s, t, j);
-
-    // a tick before a turn that is really going to land as one — if the
-    // sentence was too long and fell back to body, the mark would be
-    // announcing something that never arrives
-    if(s.flush && v === "pivot" && j > 0){
-      html += "<div class='tick' style='--c:1;--sp:2;--g:3'></div>";
-    }
 
     html += "<p class='line l-" + v + (s.flush && v === "pivot" ? " flush" : "") +
             "' style='--c:" + s.c + ";--sp:" + s.sp + ";--g:" + s.g + "'>" +
