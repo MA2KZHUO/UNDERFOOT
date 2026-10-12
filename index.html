@@ -72,17 +72,6 @@ body{
 
 #strip{position:absolute; inset:0; cursor:grab; touch-action:pan-y}
 
-/* the only thing on the home that admits there is more page */
-#cue{
-  position:absolute; left:50%; bottom:clamp(10px,2.4vh,22px);
-  transform:translateX(-50%);
-  background:none; border:0; padding:8px 10px; cursor:pointer;
-  font-family:var(--mono); font-size:13px; letter-spacing:.18em;
-  color:var(--soft); z-index:14; transition:opacity .3s;
-}
-#cue:hover{color:var(--ink)}
-#cue:focus-visible{outline:1px solid var(--ink); outline-offset:2px}
-.scrolled #cue{opacity:0; pointer-events:none}
 #strip.drag{cursor:grabbing}
 #strip.gone{opacity:0; pointer-events:none; transition:opacity .4s}
 
@@ -365,7 +354,6 @@ body{
    <div id="deck">
     <div id="strip"><div id="focusTag"></div></div>
     <div id="boot">LOADING THE PRINTS</div>
-    <button id="cue" aria-label="About and colophon">&#8595;</button>
    </div>
 
     <div id="record">
@@ -679,10 +667,6 @@ function place(){
   tagEl.innerHTML = "<em>" + L.word + "</em><i>" + stateOf(f) + "</i>";
   const tagA = Math.max(0, (k - 0.35) / 0.65) * Math.max(0, 1 - Math.abs(wrapDelta(pos - f)) * 2.4);
   tagEl.style.opacity = String(tagA);
-  // the arrow and the tag want the same spot at the foot of the row, so
-  // they take turns: settle on a lid and the way down steps back
-  const cue = document.getElementById("cue");
-  if(cue) cue.style.opacity = String(1 - tagA);
 }
 function focusIndex(){ return ((Math.round(pos) % N) + N) % N; }
 
@@ -1462,12 +1446,9 @@ const LINES = {
 };
 
 /* ──────────────────────────────────────────────── the foot, and getting there
-   There is no overlay any more. About and colophon are the bottom of the
-   home page, and the wheel reaches them the way a wheel reaches the bottom
-   of anything. */
-const footEl  = document.getElementById("foot");
-function toFoot(){ footEl.scrollIntoView({behavior:"smooth", block:"start"}); }
-document.getElementById("cue").addEventListener("click", toFoot);
+   There is no overlay and no invitation. About and colophon are simply the
+   bottom of the home page, and the wheel reaches them the way a wheel
+   reaches the bottom of anything. Nothing on the sheet says so. */
 stageEl.addEventListener("scroll", ()=>{
   document.body.classList.toggle("scrolled", stageEl.scrollTop > 24);
 }, {passive:true});
